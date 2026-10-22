@@ -52,6 +52,7 @@ export function Stepper({
   suffix,
   onChange,
   hint,
+  disabled,
 }: {
   label: string;
   value: number;
@@ -60,24 +61,35 @@ export function Stepper({
   step?: number;
   suffix?: string;
   hint?: string;
+  disabled?: boolean;
   onChange: (next: number) => void;
 }) {
   const clamp = (next: number) => Math.min(max, Math.max(min, next));
   return (
-    <div className="stepper">
+    <div className={cx('stepper', disabled && 'is-disabled')}>
       <div className="stepper__text">
         <span className="stepper__label">{label}</span>
         {hint ? <span className="stepper__hint">{hint}</span> : null}
       </div>
       <div className="stepper__control">
-        <button type="button" aria-label={`Decrease ${label}`} onClick={() => onChange(clamp(value - step))} disabled={value <= min}>
+        <button
+          type="button"
+          aria-label={`Decrease ${label}`}
+          onClick={() => onChange(clamp(value - step))}
+          disabled={disabled || value <= min}
+        >
           −
         </button>
         <span className="stepper__value">
           {value}
           {suffix ? <em>{suffix}</em> : null}
         </span>
-        <button type="button" aria-label={`Increase ${label}`} onClick={() => onChange(clamp(value + step))} disabled={value >= max}>
+        <button
+          type="button"
+          aria-label={`Increase ${label}`}
+          onClick={() => onChange(clamp(value + step))}
+          disabled={disabled || value >= max}
+        >
           +
         </button>
       </div>

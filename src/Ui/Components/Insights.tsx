@@ -12,28 +12,25 @@ import { useT } from '../I18n/I18n';
 import type { MessageKey } from '../I18n/Messages';
 import { ProgressBar } from './Display';
 import {
-  BoltIcon,
   ChartIcon,
   CrownIcon,
-  FlameIcon,
-  GemIcon,
-  HeartIcon,
   ShieldIcon,
   StarIcon,
   TargetIcon,
   TrophyIcon,
 } from '../Icons/Icons';
+import { DuoArt } from '../Icons/DuoArt';
 
 const ACHIEVEMENT_ICONS: Record<AchievementIcon, ReactNode> = {
-  flame: <FlameIcon size={18} />,
-  gem: <GemIcon size={18} />,
+  flame: <DuoArt name="streak" size={22} />,
+  gem: <DuoArt name="gem" size={22} />,
   trophy: <TrophyIcon size={18} />,
-  bolt: <BoltIcon size={18} />,
+  bolt: <DuoArt name="xp" size={22} />,
   star: <StarIcon size={18} />,
   crown: <CrownIcon size={18} />,
   shield: <ShieldIcon size={18} />,
   target: <TargetIcon size={18} />,
-  heart: <HeartIcon size={18} />,
+  heart: <DuoArt name="heart" size={22} />,
   chart: <ChartIcon size={18} />,
 };
 

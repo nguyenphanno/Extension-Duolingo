@@ -6,6 +6,8 @@
  * the app never touches raw API shapes.
  */
 import { CHALLENGE_TYPES } from '@Shared/Constants';
+import { AppError } from '@Shared/Result';
+import type { LiveShopItem } from '@Shared/ShopCatalog';
 import type {
   DuoGoalsResponse,
   DuoProfileResponse,
@@ -79,13 +81,40 @@ export class DuolingoApi {
   }
 
   async buyStreakFreeze(): Promise<{ status: number }> {
+    return this.buyItem('streak_freeze');
+  }
+
+  /**
+   * Buy anything the shop sells.
+   *
+   * `retries: 0` on purpose: a purchase is not idempotent, and a retried POST
+   * after a timeout could charge twice.
+   */
+  async buyItem(itemId: string): Promise<{ status: number }> {
     const response = await this.http.request<unknown>(endpoints.shopItems(this.userId), {
       method: 'POST',
-      body: { itemId: 'streak_freeze' },
-      label: 'Buy streak freeze',
+      body: { itemId },
+      label: `Buy ${itemId}`,
       retries: 0,
     });
     return { status: response.status };
+  }
+
+  /**
+   * The live shop, normalised to ids and gem prices.
+   *
+   * Throws when the endpoint answers with a shape we do not recognise — the
+   * caller is expected to fall back to the reference catalogue and say so,
+   * rather than render an empty shop as if the account owned everything.
+   */
+  async getShop(): Promise<LiveShopItem[]> {
+    const raw = await this.http.json<unknown>(endpoints.shopItems(this.userId), {
+      label: 'Shop',
+      retries: 0,
+    });
+    const items = normaliseShop(raw);
+    if (!items) throw new AppError('PARSE', 'The shop returned a shape this build does not understand.');
+    return items;
   }
 
   async claimRewards(maxClaims: number): Promise<ClaimOutcome> {
@@ -177,4 +206,38 @@ export function normaliseProfile(raw: DuoProfileResponse, fallbackUserId: string
     fetchedAt: Date.now(),
     rawBundles: Array.isArray(raw.rewardBundles) ? raw.rewardBundles : [],
   };
+}
+
+/**
+ * Pull ids and gem prices out of whatever the shop endpoint returned.
+ *
+ * Returns `null` when the payload is not a list at all, so the caller can tell
+ * "the shop is empty" apart from "we cannot read this shop".
+ */
+export function normaliseShop(raw: unknown): LiveShopItem[] | null {
+  const list = Array.isArray(raw)
+    ? raw
+    : isRecord(raw) && Array.isArray(raw.items)
+      ? raw.items
+      : isRecord(raw) && Array.isArray(raw.shopItems)
+        ? raw.shopItems
+        : null;
+  if (!list) return null;
+
+  const items: LiveShopItem[] = [];
+  for (const entry of list) {
+    if (!isRecord(entry)) continue;
+    const nested = isRecord(entry.item) ? entry.item : {};
+    const rawId = entry.itemId ?? entry.id ?? nested.id;
+    const id = typeof rawId === 'string' || typeof rawId === 'number' ? String(rawId) : '';
+    if (!id) continue;
+
+    const price = Number(entry.price ?? entry.priceGems ?? nested.price ?? entry.amount);
+    items.push({ id, priceGems: Number.isFinite(price) && price > 0 ? price : null });
+  }
+  return items;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
 }

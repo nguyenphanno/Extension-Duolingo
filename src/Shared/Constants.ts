@@ -76,11 +76,14 @@ export const STORAGE_KEYS = {
   runState: 'duo.run-state',
   profileCache: 'duo.profile',
   logs: 'duo.logs',
+  answers: 'duo.answers',
 } as const;
 
-export const SCHEMA_VERSION = 4;
+export const SCHEMA_VERSION = 6;
 export const HISTORY_LIMIT = 200;
 export const LOG_BUFFER_LIMIT = 400;
+/** How many learned sentences to keep. Each is one line of text; 800 is tiny. */
+export const ANSWER_BOOK_LIMIT = 800;
 
 /* ------------------------------- Messaging ------------------------------- */
 
@@ -95,6 +98,13 @@ export const MENU_OPEN_PANEL = 'duo.menu.panel';
 
 export const COMMAND_RUN = 'run-automation';
 export const COMMAND_PANEL = 'open-side-panel';
+
+/**
+ * `postMessage` key used by the MAIN-world capture script to hand answers to the
+ * isolated world. Namespaced so the page's own messages are never mistaken for
+ * ours, and the other way round.
+ */
+export const ANSWER_CHANNEL_TAG = '__duoAssistAnswers';
 
 /* -------------------------------- Defaults ------------------------------- */
 
@@ -146,4 +156,30 @@ export const WATCH = {
   hour: 22,
   minute: 0,
   snoozeMinutes: 60,
+} as const;
+
+/**
+ * Auto-answer timing. Every number here is a "do not look like a robot" knob,
+ * and all of them are deliberately slower than they need to be: a lesson that
+ * finishes in nine seconds is the one thing guaranteed to get an account looked
+ * at.
+ */
+export const AUTO_ANSWER = {
+  /** Default pause before acting on a freshly rendered challenge. */
+  thinkMs: 900,
+  /** Human typing speed for text answers, characters per second. */
+  typeCps: 14,
+  /** Gap between two tile clicks in a token build. */
+  tapGapMs: 130,
+  /** How long to wait for the DOM to show the next challenge before giving up. */
+  nextChallengeTimeoutMs: 9000,
+  /** Pause after Skip before reading the answer Duolingo reveals. */
+  revealDelayMs: 700,
+  /** Guard against a loop that never advances: stop after this many repeats. */
+  maxStalls: 3,
+} as const;
+
+export const AUTO_ANSWER_LIMITS = {
+  thinkMs: { min: 0, max: 8000 },
+  maxPerLesson: { min: 0, max: 60 },
 } as const;

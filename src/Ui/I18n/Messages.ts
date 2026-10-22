@@ -34,8 +34,10 @@ export const EN = {
   /* ------------------------------ Navigation ---------------------------- */
   'nav.account': 'Account',
   'nav.practice': 'Practice',
+  'nav.answers': 'Auto-answer',
   'nav.activity': 'Activity',
   'nav.rewards': 'Rewards & badges',
+  'nav.shop': 'Shop',
   'nav.schedule': 'Schedule',
   'nav.safety': 'Safety & PRO',
   'nav.appearance': 'Appearance',
@@ -357,6 +359,18 @@ export const EN = {
   'opt.rewards.insureHint':
     'Buy only the cover the forecast says is missing — a day that already has XP needs one freeze fewer',
 
+  /* ------------------------------- Options: shop ------------------------ */
+  'shop.title': 'Shop',
+  'shop.sub': 'Spend gems on the things Duolingo actually sells',
+  'shop.balance': '{gems} gems',
+  'shop.live': 'Prices and availability come from your account.',
+  'shop.reference': 'The shop did not answer, so these are reference prices — check the app before buying.',
+  'shop.loading': 'Loading the shop…',
+  'shop.empty': 'Nothing is for sale right now.',
+  'shop.price': '{gems} gems',
+  'shop.buy': 'Buy',
+  'shop.bought': 'Purchased.',
+
   /* ---------------------------- Options: activity ----------------------- */
   'opt.activity.forecast': 'Streak forecast',
   'opt.activity.heatmap': 'XP heatmap',
@@ -424,6 +438,9 @@ export const EN = {
   'opt.safety.cooldownHint': 'Blocks accidental double-runs; scheduled runs are exempt',
   'opt.safety.keepAlive': 'Keep the worker awake',
   'opt.safety.keepAliveHint': 'Prevents a long run from being suspended mid-way',
+  'opt.safety.runOnLesson': 'Start when a lesson opens',
+  'opt.safety.runOnLessonHint':
+    'The in-page panel starts a run as soon as a lesson page loads. It never clicks anything on the page — lessons are completed through the API, alongside whatever you are doing.',
   'opt.safety.pro': 'Third-party PRO bridge',
   'opt.safety.proSub': 'api.duolingopro.net',
   'opt.safety.proBody': 'Badge requests, Super activation and XP boosts are sent to a third-party service together with your session token. Nothing else in this extension contacts that host.',
@@ -439,6 +456,42 @@ export const EN = {
   'opt.safety.pacingHold': 'Holding until {when}',
   'opt.safety.pacingIdle': 'No rate limit hit — normal pacing.',
   'opt.safety.pacingNote': 'A 429 widens the gap between writes and parks the client until Retry-After expires.',
+
+  /* ---------------------------- Options: answers ------------------------ */
+  'opt.answers.title': 'Auto-answer',
+  'opt.answers.sub': 'Fill in a lesson while you watch',
+  'opt.answers.readTitle': 'Read this once',
+  'opt.answers.readBody':
+    'This one acts inside the lesson page, not through the API. It reads each challenge, works out the answer, and taps the tiles or types the text for you. It never guesses: when it is not sure, it leaves the challenge to you. Off by default.',
+  'opt.answers.enable': 'Enable auto-answer',
+  'opt.answers.enableHint': 'Adds a switch to the in-page panel, so you can turn it on only when you want it.',
+  'opt.answers.sourceTitle': 'Where the answers come from',
+  'opt.answers.sourceSub': 'Two sources, cheapest first',
+  'opt.answers.fromPayload': 'Read the lesson payload',
+  'opt.answers.fromPayloadHint':
+    'Free. The correct answers arrive with the lesson itself, so nothing is spent and nothing is submitted twice.',
+  'opt.answers.learnFromSkip': 'Learn by skipping',
+  'opt.answers.learnFromSkipHint':
+    'Fallback. Presses Skip, reads the answer Duolingo reveals, and remembers it for next time. Costs one exercise per new sentence — that is why it is separate and off by default.',
+  'opt.answers.behaviourTitle': 'How it behaves',
+  'opt.answers.behaviourSub': 'Timing and limits',
+  'opt.answers.think': 'Pause before answering',
+  'opt.answers.thinkHint': 'A lesson that finishes in nine seconds is the one thing that gets an account noticed.',
+  'opt.answers.cap': 'Answers per lesson',
+  'opt.answers.capHint': '0 means no ceiling.',
+  'opt.answers.autoSubmit': 'Press Check for me',
+  'opt.answers.autoSubmitHint': 'Off leaves the answer filled in, waiting for you to submit it.',
+  'opt.answers.bookTitle': 'Remembered sentences',
+  'opt.answers.bookSub': 'The answer book',
+  'opt.answers.bookEmpty': 'Nothing remembered yet. It fills up as lessons are played.',
+  'opt.answers.bookClear': 'Forget everything',
+  'opt.answers.bookCleared': 'The answer book is empty again',
+  'opt.answers.noSource': 'With both sources off, there is nothing to answer from — the switch in the lesson panel will stay idle.',
+  'opt.answers.typesTitle': 'What it will and will not touch',
+  'opt.answers.typesSupported':
+    'Translate, reverse translate, select, judge, form, gap fill, tap complete, dialogue, reading comprehension.',
+  'opt.answers.typesRefused':
+    'Listening, speaking, character puzzles, syllable taps and pair matching are left alone. Each needs audio, drag, or a pairing the page does not expose — and a wrong answer there costs a heart.',
 
   /* --------------------------- Options: appearance ---------------------- */
   'opt.appearance.theme': 'Theme',
@@ -610,8 +663,10 @@ export const VI: Record<MessageKey, string> = {
   /* ------------------------------ Navigation ---------------------------- */
   'nav.account': 'Tài khoản',
   'nav.practice': 'Luyện tập',
+  'nav.answers': 'Tự trả lời',
   'nav.activity': 'Hoạt động',
   'nav.rewards': 'Phần thưởng & huy hiệu',
+  'nav.shop': 'Cửa hàng',
   'nav.schedule': 'Lịch chạy',
   'nav.safety': 'An toàn & PRO',
   'nav.appearance': 'Giao diện',
@@ -933,6 +988,18 @@ export const VI: Record<MessageKey, string> = {
   'opt.rewards.insureHint':
     'Chỉ mua phần bảo hiểm mà dự báo còn thiếu — ngày đã có XP thì cần ít hơn một lượt',
 
+  /* ------------------------------- Options: shop ------------------------ */
+  'shop.title': 'Cửa hàng',
+  'shop.sub': 'Dùng gem mua đúng những thứ Duolingo bán',
+  'shop.balance': '{gems} gem',
+  'shop.live': 'Giá và tình trạng lấy từ tài khoản của bạn.',
+  'shop.reference': 'Cửa hàng không phản hồi, đây là giá tham khảo — kiểm tra lại trong app trước khi mua.',
+  'shop.loading': 'Đang tải cửa hàng…',
+  'shop.empty': 'Hiện không có gì để mua.',
+  'shop.price': '{gems} gem',
+  'shop.buy': 'Mua',
+  'shop.bought': 'Đã mua.',
+
   /* ---------------------------- Options: activity ----------------------- */
   'opt.activity.forecast': 'Dự báo chuỗi',
   'opt.activity.heatmap': 'Bản đồ nhiệt XP',
@@ -1000,6 +1067,9 @@ export const VI: Record<MessageKey, string> = {
   'opt.safety.cooldownHint': 'Chặn bấm đúp; lượt chạy theo lịch được miễn',
   'opt.safety.keepAlive': 'Giữ service worker thức',
   'opt.safety.keepAliveHint': 'Ngăn lượt chạy dài bị treo giữa đường',
+  'opt.safety.runOnLesson': 'Tự chạy khi mở bài học',
+  'opt.safety.runOnLessonHint':
+    'Bảng trong trang sẽ chạy ngay khi mở trang bài học. Nó không bấm gì trên trang — bài được hoàn thành qua API, song song với việc bạn đang làm.',
   'opt.safety.pro': 'Cầu nối PRO bên thứ ba',
   'opt.safety.proSub': 'api.duolingopro.net',
   'opt.safety.proBody': 'Yêu cầu huy hiệu, kích hoạt Super và nhân đôi XP được gửi tới một dịch vụ bên thứ ba cùng với token phiên của bạn. Không chỗ nào khác trong tiện ích liên hệ host đó.',
@@ -1015,6 +1085,42 @@ export const VI: Record<MessageKey, string> = {
   'opt.safety.pacingHold': 'Đang giữ tới {when}',
   'opt.safety.pacingIdle': 'Chưa bị giới hạn tốc độ — nhịp bình thường.',
   'opt.safety.pacingNote': 'Một lần 429 sẽ giãn khoảng cách giữa các lệnh ghi và giữ client tới khi Retry-After hết hạn.',
+
+  /* ---------------------------- Options: answers ------------------------ */
+  'opt.answers.title': 'Tự trả lời',
+  'opt.answers.sub': 'Điền bài học trong lúc bạn theo dõi',
+  'opt.answers.readTitle': 'Đọc một lần',
+  'opt.answers.readBody':
+    'Tính năng này thao tác ngay trong trang bài học, không đi qua API. Nó đọc từng câu hỏi, tìm ra đáp án rồi tự bấm ô chữ hoặc gõ câu trả lời. Nó không bao giờ đoán: khi không chắc, nó để nguyên câu đó cho bạn. Mặc định tắt.',
+  'opt.answers.enable': 'Bật tự trả lời',
+  'opt.answers.enableHint': 'Thêm một công tắc vào bảng trong trang, để bạn chỉ bật khi cần.',
+  'opt.answers.sourceTitle': 'Đáp án lấy từ đâu',
+  'opt.answers.sourceSub': 'Hai nguồn, rẻ nhất trước',
+  'opt.answers.fromPayload': 'Đọc dữ liệu bài học',
+  'opt.answers.fromPayloadHint':
+    'Miễn phí. Đáp án đúng đi kèm chính bài học, nên không mất lượt nào và không bị nộp hai lần.',
+  'opt.answers.learnFromSkip': 'Học bằng cách bỏ qua',
+  'opt.answers.learnFromSkipHint':
+    'Phương án dự phòng. Bấm Bỏ qua, đọc đáp án Duolingo hiện ra rồi ghi nhớ cho lần sau. Tốn một lượt cho mỗi câu mới — vì vậy nó tách riêng và mặc định tắt.',
+  'opt.answers.behaviourTitle': 'Cách nó chạy',
+  'opt.answers.behaviourSub': 'Nhịp độ và giới hạn',
+  'opt.answers.think': 'Dừng trước khi trả lời',
+  'opt.answers.thinkHint': 'Một bài xong trong chín giây là thứ duy nhất khiến tài khoản bị để ý.',
+  'opt.answers.cap': 'Số câu mỗi bài',
+  'opt.answers.capHint': '0 nghĩa là không giới hạn.',
+  'opt.answers.autoSubmit': 'Tự bấm Kiểm tra',
+  'opt.answers.autoSubmitHint': 'Tắt thì đáp án được điền sẵn và chờ bạn nộp.',
+  'opt.answers.bookTitle': 'Câu đã nhớ',
+  'opt.answers.bookSub': 'Sổ đáp án',
+  'opt.answers.bookEmpty': 'Chưa nhớ câu nào. Sổ sẽ đầy dần khi bạn chơi.',
+  'opt.answers.bookClear': 'Xoá toàn bộ',
+  'opt.answers.bookCleared': 'Sổ đáp án đã trống lại',
+  'opt.answers.noSource': 'Cả hai nguồn đều tắt thì không có gì để trả lời — công tắc trong bảng bài học sẽ đứng yên.',
+  'opt.answers.typesTitle': 'Cái gì được đụng, cái gì không',
+  'opt.answers.typesSupported':
+    'Dịch, dịch ngược, chọn đáp án, đúng/sai, chia dạng, điền chỗ trống, ghép ô chữ, hội thoại, đọc hiểu.',
+  'opt.answers.typesRefused':
+    'Nghe, nói, xếp chữ cái, ghép âm tiết và nối cặp đều được để nguyên. Mỗi loại cần âm thanh, kéo thả, hoặc một cặp nối mà trang không hiển thị — và trả lời sai ở đó sẽ mất tim.',
 
   /* --------------------------- Options: appearance ---------------------- */
   'opt.appearance.theme': 'Chủ đề',

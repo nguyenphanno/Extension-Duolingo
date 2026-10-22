@@ -45,31 +45,15 @@ function Svg({ size = 24, className, style, title, children, filled }: BaseProps
 
 /* ------------------------------- Brand objects ------------------------------ */
 
-export const FlameIcon = (p: IconProps) => (
-  <Svg {...p} filled>
-    <path d="M12.2 1.8c.4 3.1 2.2 4.2 3.6 5.8 1.2 1.4 1.9 3.1 1.9 4.8a5.7 5.7 0 1 1-11.4 0c0-2 .8-3.8 2.1-5.1.3 1.5 1 2.6 2.1 3.2.2-2.7.4-5.9 1.7-8.7Z" />
-    <path d="M12 21.6a2.9 2.9 0 0 0 2.9-2.9c0-1.6-1.1-2.7-2.9-4.9-1.8 2.2-2.9 3.3-2.9 4.9A2.9 2.9 0 0 0 12 21.6Z" fill="rgba(255,255,255,.55)" />
-  </Svg>
-);
-
-export const GemIcon = (p: IconProps) => (
-  <Svg {...p} filled>
-    <path d="M7.3 2.6h9.4l3.6 5.6-8.3 13.2L3.7 8.2l3.6-5.6Z" />
-    <path d="M12 2.6 8.4 8.2l3.6 13.2 3.6-13.2L12 2.6Z" fill="rgba(255,255,255,.28)" />
-  </Svg>
-);
-
-export const HeartIcon = (p: IconProps) => (
-  <Svg {...p} filled>
-    <path d="M12 21.3s-7.7-4.7-9.5-9.2A5.4 5.4 0 0 1 12 6.2a5.4 5.4 0 0 1 9.5 5.9c-1.8 4.5-9.5 9.2-9.5 9.2Z" />
-  </Svg>
-);
-
-export const BoltIcon = (p: IconProps) => (
-  <Svg {...p} filled>
-    <path d="M13.6 1.8 4.4 13.4h5.3L9.2 22.2l9.4-12.1h-5.5l.5-8.3Z" />
-  </Svg>
-);
+/**
+ * Every reward object — gem, heart, streak flame, XP bolt — and every category
+ * icon now comes from `DuoArt`. They are full-colour artwork, not glyphs, and
+ * nothing here should be redrawn to imitate them.
+ *
+ * What stays in this file is the *line* vocabulary: chevrons, ticks, sliders,
+ * clocks. Those are UI furniture, they take `currentColor`, and they are the
+ * right shape to inherit a hover or active state.
+ */
 
 export const StarIcon = (p: IconProps) => (
   <Svg {...p} filled>
@@ -287,13 +271,6 @@ export const RocketIcon = (p: IconProps) => (
     <path d="M13.6 3.4c3.6-1.4 7 .4 7 .4s1.8 3.4.4 7c-1.4 3.6-6.6 7.2-6.6 7.2l-4-4s3.6-5.2 3.2-10.6Z" />
     <circle cx="15.6" cy="8.4" r="1.7" />
     <path d="M8.4 15.6 5 19M4.6 13.2 2.4 15.4l3.4 1M10.8 19.4l-1 3.4 2.2-2.2" />
-  </Svg>
-);
-
-export const CalendarIcon = (p: IconProps) => (
-  <Svg {...p}>
-    <rect x="3.4" y="5.4" width="17.2" height="15.2" rx="3" />
-    <path d="M3.4 10.4h17.2M8 3.4v4M16 3.4v4" />
   </Svg>
 );
 

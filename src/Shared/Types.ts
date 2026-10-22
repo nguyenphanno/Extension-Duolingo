@@ -222,6 +222,11 @@ export interface BehaviorSettings {
   badgeText: boolean;
   openSidePanelOnRun: boolean;
   keepServiceWorkerAlive: boolean;
+  /**
+   * Start a run the moment a lesson page opens. Off by default: it can overlap
+   * with a lesson the user is doing by hand, which is surprising at best.
+   */
+  runOnLesson: boolean;
   /** Minimum seconds between two runs, to avoid hammering the API. */
   cooldownSeconds: number;
 }
@@ -230,6 +235,36 @@ export interface UiSettings {
   theme: ThemePreference;
   locale: Locale;
   reduceMotion: boolean;
+}
+
+/**
+ * Auto-answer — fill in a lesson's challenges while the user watches.
+ *
+ * Every field here is a *permission*, not a preference: the solver in
+ * `Shared/Utils/Answers.ts` fails closed by design, and these are the only
+ * reasons it is ever allowed to act. All of them default off except the two
+ * that cost nothing.
+ */
+export interface AutoAnswerSettings {
+  /** Master switch. Off by default — this one changes what happens in a lesson. */
+  enabled: boolean;
+  /**
+   * Read answers out of the lesson payload before the exercise is shown.
+   * Free: nothing is spent, nothing is submitted twice. This is the good path.
+   */
+  fromPayload: boolean;
+  /**
+   * Fall back to pressing Skip and reading the answer Duolingo reveals. Costs
+   * one exercise per *new* sentence, then never again — but it is a real cost,
+   * so it is opt-in and separate from `fromPayload`.
+   */
+  learnFromSkip: boolean;
+  /** Pause before acting, so the answer does not appear the instant the page renders. */
+  thinkMs: number;
+  /** Ceiling on answers per lesson. 0 means "as many as the lesson has". */
+  maxPerLesson: number;
+  /** Submit after filling. Off means "fill it in and let me press Check". */
+  autoSubmit: boolean;
 }
 
 export interface Settings {
@@ -246,6 +281,7 @@ export interface Settings {
   schedule: ScheduleSettings;
   behavior: BehaviorSettings;
   ui: UiSettings;
+  answers: AutoAnswerSettings;
 }
 
 /* ------------------------------------------------------------------ *
@@ -362,4 +398,23 @@ export interface ProResponse {
   percentage?: number;
   raw?: unknown;
   [key: string]: unknown;
+}
+
+/* ------------------------------------------------------------------ *
+ * Cross-world messaging
+ * ------------------------------------------------------------------ */
+
+/**
+ * What the MAIN-world capture script posts to the isolated world.
+ *
+ * Declared here rather than next to either endpoint because both sides need it,
+ * and `Types.ts` is the only file both can import without pulling in code.
+ * `pairs` mirrors `ExtractedAnswer` in `Shared/Utils/Answers.ts`, inlined so
+ * this file keeps its no-imports rule.
+ */
+export interface AnswerCaptureMessage {
+  __duoAssistAnswers: 1;
+  /** The request the answers came from, for the log. */
+  url: string;
+  pairs: Array<{ prompt: string; solutions: string[] }>;
 }

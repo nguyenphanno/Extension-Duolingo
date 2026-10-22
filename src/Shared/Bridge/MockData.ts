@@ -188,6 +188,20 @@ function deriveStats(runs: RunSummary[]): HistoryStats {
 
 export const MOCK_STATS: HistoryStats = deriveStats(MOCK_RUNS);
 
+/**
+ * Preview stand-in for the answer book. Mutable so the "forget everything"
+ * button does something visible in preview mode too.
+ */
+export const MOCK_ANSWERS = {
+  count: 12,
+  recent: [
+    { prompt: 'the cat is on the table', text: 'con mèo ở trên bàn' },
+    { prompt: 'i have two brothers', text: 'tôi có hai anh trai' },
+    { prompt: 'where is the station', text: 'nhà ga ở đâu' },
+    { prompt: 'she does not drink coffee', text: 'cô ấy không uống cà phê' },
+  ],
+};
+
 export const MOCK_LOGS: LogEntry[] = [
   { id: 'l1', at: now - 62_000, level: 'info', scope: 'run', message: 'Run started (manual)' },
   { id: 'l2', at: now - 61_000, level: 'success', scope: 'run', message: 'Signed in as minh.learner · 128-day streak · 24580 XP' },

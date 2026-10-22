@@ -353,6 +353,14 @@
   background: color-mix(in srgb, var(--duo-green) 16%, transparent);
   color: color-mix(in srgb, var(--duo-green) 80%, #000 20%);
 }
+/* The disabled state used to be "the glyph turns grey". Artwork can't take a
+   colour, so the off state becomes a desaturate instead. */
+.task-row__icon img {
+  filter: grayscale(1) opacity(0.45);
+}
+.task-row__icon.is-on img {
+  filter: none;
+}
 .task-row__text {
   flex: 1;
   min-width: 0;

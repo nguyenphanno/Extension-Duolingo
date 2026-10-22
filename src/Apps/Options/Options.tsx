@@ -9,12 +9,15 @@
  * All copy comes from the message catalogue; the language switch re-renders the
  * page in place, including the command palette.
  */
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { formatCompact, formatNumber } from '@Shared/Utils/Format';
+import type { AnswerBookStats } from '@Core/Storage/AnswerBook';
 import { dayKey, formatDuration, formatRelative } from '@Shared/Utils/Time';
 import { achievementSummary, computeAchievements } from '@Shared/Utils/Achievements';
 import { forecastFromProfile } from '@Shared/Utils/Forecast';
 import { isPausedOn } from '@Shared/Utils/Pause';
+import { describeError } from '@Shared/Result';
+import type { ShopItemView } from '@Shared/ShopCatalog';
 import type { Locale, RunSummary, TaskKey, ThemePreference } from '@Shared/Types';
 import { bridge } from '@Shared/Bridge/ExtensionBridge';
 import { useAppState } from '@Ui/Hooks/UseAppState';
@@ -36,8 +39,6 @@ import { ToastStack } from '@Ui/Components/Toast';
 import { WeeklyReport } from '@Ui/Components/WeeklyReport';
 import {
   AlertIcon,
-  BoltIcon,
-  CalendarIcon,
   ChartIcon,
   CheckIcon,
   ChevronRightIcon,
@@ -45,51 +46,54 @@ import {
   CopyIcon,
   DownloadIcon,
   ExternalIcon,
-  FlameIcon,
-  GemIcon,
   GlobeIcon,
-  HeartIcon,
   HistoryIcon,
-  KeyIcon,
   LinkIcon,
   MoonIcon,
-  OwlIcon,
   PlayIcon,
   RefreshIcon,
-  RocketIcon,
   ShieldIcon,
   SlidersIcon,
   SparkleIcon,
   SunIcon,
-  TargetIcon,
   TrashIcon,
-  TrophyIcon,
   UploadIcon,
 } from '@Ui/Icons/Icons';
 import { modKey } from '@Ui/Utils/Platform';
+import { DuoArt } from '@Ui/Icons/DuoArt';
 import './Options.css';
 
 type Section =
   | 'account'
   | 'practice'
+  | 'answers'
   | 'activity'
   | 'rewards'
+  | 'shop'
   | 'schedule'
   | 'safety'
   | 'appearance'
   | 'data'
   | 'about';
 
+interface ShopResponse {
+  items: ShopItemView[];
+  source: 'live' | 'catalog';
+  error?: string;
+}
+
 const NAV: Array<{ id: Section; labelKey: MessageKey; icon: JSX.Element }> = [
-  { id: 'account', labelKey: 'nav.account', icon: <KeyIcon size={17} /> },
-  { id: 'practice', labelKey: 'nav.practice', icon: <BoltIcon size={17} /> },
-  { id: 'activity', labelKey: 'nav.activity', icon: <ChartIcon size={17} /> },
-  { id: 'rewards', labelKey: 'nav.rewards', icon: <TrophyIcon size={17} /> },
-  { id: 'schedule', labelKey: 'nav.schedule', icon: <CalendarIcon size={17} /> },
-  { id: 'safety', labelKey: 'nav.safety', icon: <ShieldIcon size={17} /> },
-  { id: 'appearance', labelKey: 'nav.appearance', icon: <SparkleIcon size={17} /> },
-  { id: 'data', labelKey: 'nav.data', icon: <DownloadIcon size={17} /> },
-  { id: 'about', labelKey: 'nav.about', icon: <OwlIcon size={17} /> },
+  { id: 'account', labelKey: 'nav.account', icon: <DuoArt name="navAccount" size={22} /> },
+  { id: 'practice', labelKey: 'nav.practice', icon: <DuoArt name="navPractice" size={22} /> },
+  { id: 'answers', labelKey: 'nav.answers', icon: <DuoArt name="key" size={22} /> },
+  { id: 'activity', labelKey: 'nav.activity', icon: <DuoArt name="navActivity" size={22} /> },
+  { id: 'rewards', labelKey: 'nav.rewards', icon: <DuoArt name="navRewards" size={22} /> },
+  { id: 'shop', labelKey: 'nav.shop', icon: <DuoArt name="navShop" size={22} /> },
+  { id: 'schedule', labelKey: 'nav.schedule', icon: <DuoArt name="navSchedule" size={22} /> },
+  { id: 'safety', labelKey: 'nav.safety', icon: <DuoArt name="navSafety" size={22} /> },
+  { id: 'appearance', labelKey: 'nav.appearance', icon: <DuoArt name="navAppearance" size={22} /> },
+  { id: 'data', labelKey: 'nav.data', icon: <DuoArt name="navData" size={22} /> },
+  { id: 'about', labelKey: 'nav.about', icon: <DuoArt name="navAbout" size={22} /> },
 ];
 
 const DAY_KEYS: MessageKey[] = [
@@ -322,6 +326,9 @@ export function Options() {
   const [importDraft, setImportDraft] = useState('');
   const [runs, setRuns] = useState<RunSummary[]>([]);
   const [paletteOpen, setPaletteOpen] = useState(false);
+  const [shop, setShop] = useState<ShopResponse | null>(null);
+  const [shopBusy, setShopBusy] = useState<string | null>(null);
+  const [answers, setAnswers] = useState<AnswerBookStats | null>(null);
 
   useTheme(app.state?.settings.ui.theme);
   useLocale(app.state?.settings.ui.locale);
@@ -343,6 +350,51 @@ export function Options() {
       if (result.ok) setRuns(result.value);
     });
   }, [section]);
+
+  // The shop is fetched lazily: it costs a network round-trip and most visits
+  // never open that section.
+  useEffect(() => {
+    if (section !== 'shop' || shop) return;
+    void bridge.send<ShopResponse>({ type: 'shop/list' }).then((result) => {
+      if (result.ok) setShop(result.value);
+    });
+  }, [section, shop]);
+
+  // The answer book is read on demand too: it lives in its own storage key, and
+  // a settings save does not touch it, so there is nothing to subscribe to.
+  const loadAnswers = useCallback(() => {
+    void bridge.send<AnswerBookStats>({ type: 'answers/stats' }).then((result) => {
+      if (result.ok) setAnswers(result.value);
+    });
+  }, []);
+
+  useEffect(() => {
+    if (section !== 'answers') return;
+    loadAnswers();
+  }, [section, loadAnswers]);
+
+  const clearAnswerBook = async (): Promise<void> => {
+    const result = await bridge.send({ type: 'answers/clear' });
+    if (result.ok) {
+      setAnswers({ count: 0, recent: [] });
+      app.toast('success', t('opt.answers.bookCleared'));
+    } else {
+      app.toast('error', describeError(result.error));
+    }
+  };
+
+  const buyShopItem = async (itemId: string): Promise<void> => {
+    setShopBusy(itemId);
+    const result = await bridge.send({ type: 'shop/buy', itemId });
+    setShopBusy(null);
+    if (!result.ok) {
+      app.toast('error', describeError(result.error));
+      return;
+    }
+    app.toast('success', t('shop.bought'));
+    // Prices and the gem balance both moved, so refetch rather than patch.
+    setShop(null);
+  };
 
   const heatCells = useMemo(() => {
     const totals = new Map<string, number>();
@@ -582,7 +634,7 @@ export function Options() {
             </span>
           </div>
           <div className="side__status-row">
-            <FlameIcon size={14} />
+            <DuoArt name="streak" size={18} />
             <span>{tp('opt.sidebarStreak', state.profile?.streak ?? 0)}</span>
           </div>
           <ProgressBar value={state.stats.successRate / 100} height={8} tone="green" />
@@ -606,17 +658,17 @@ export function Options() {
             </div>
           </div>
           <div className="hero__stats">
-            <Stat icon={<BoltIcon size={15} />} value={formatCompact(state.profile?.totalXp ?? 0)} label="XP" tone="gold" compact />
+            <Stat icon={<DuoArt name="xp" size={24} />} value={formatCompact(state.profile?.totalXp ?? 0)} label="XP" tone="gold" compact />
             <Stat
-              icon={<GemIcon size={15} />}
+              icon={<DuoArt name="gem" size={24} />}
               value={formatCompact(state.profile?.gems ?? 0)}
               label={t('popup.statGems')}
               tone="blue"
               compact
             />
-            <Stat icon={<HeartIcon size={15} />} value={state.profile?.hearts ?? 5} label={t('popup.statHearts')} tone="red" compact />
+            <Stat icon={<DuoArt name="heart" size={26} />} value={state.profile?.hearts ?? 5} label={t('popup.statHearts')} tone="red" compact />
             <Stat
-              icon={<FlameIcon size={15} />}
+              icon={<DuoArt name="streak" size={24} />}
               value={state.profile?.streak ?? 0}
               label={t('popup.dayStreak')}
               tone="orange"
@@ -644,7 +696,7 @@ export function Options() {
               <CardHeader
                 title={t('opt.account.sourceTitle')}
                 subtitle={t('opt.account.sourceSub')}
-                icon={<KeyIcon size={18} />}
+                icon={<DuoArt name="key" size={22} />}
                 action={
                   <Pill tone={state.token.valid ? 'green' : 'red'}>
                     {state.token.valid ? t('opt.account.live') : t('opt.account.missing')}
@@ -693,7 +745,7 @@ export function Options() {
               <CardHeader
                 title={t('opt.account.cacheTitle')}
                 subtitle={t('opt.account.cacheSub')}
-                icon={<HistoryIcon size={18} />}
+                icon={<DuoArt name="archive" size={22} />}
               />
               <div className="kv">
                 <div>
@@ -727,7 +779,7 @@ export function Options() {
               <CardHeader
                 title={t('opt.practice.title')}
                 subtitle={t('opt.practice.sub')}
-                icon={<BoltIcon size={18} />}
+                icon={<DuoArt name="navPractice" size={22} />}
                 action={
                   <Toggle
                     label=""
@@ -811,7 +863,7 @@ export function Options() {
               <CardHeader
                 title={t('opt.practice.goalTitle')}
                 subtitle={t('opt.practice.goalSub')}
-                icon={<TargetIcon size={18} />}
+                icon={<DuoArt name="target" size={22} />}
                 action={
                   <Toggle
                     label=""
@@ -862,13 +914,141 @@ export function Options() {
           </div>
         ) : null}
 
+        {section === 'answers' ? (
+          <div className="stack">
+            <Card tone="gold">
+              <CardHeader title={t('opt.answers.readTitle')} subtitle={t('opt.answers.sub')} icon={<DuoArt name="warning" size={22} />} />
+              <p className="hint">{t('opt.answers.readBody')}</p>
+            </Card>
+
+            <Card>
+              <CardHeader
+                title={t('opt.answers.title')}
+                subtitle={t('opt.answers.enableHint')}
+                icon={<DuoArt name="key" size={22} />}
+                action={
+                  <Toggle
+                    label=""
+                    checked={s.answers.enabled}
+                    onChange={(next) => void patch((draft) => void (draft.answers.enabled = next))}
+                  />
+                }
+              />
+              <div className="kv">
+                <div>
+                  <span>{t('opt.answers.cap')}</span>
+                  <b>{s.answers.maxPerLesson === 0 ? '—' : s.answers.maxPerLesson}</b>
+                </div>
+                <div>
+                  <span>{t('opt.answers.think')}</span>
+                  <b>{(s.answers.thinkMs / 1000).toFixed(1)}s</b>
+                </div>
+              </div>
+            </Card>
+
+            <Card>
+              <CardHeader title={t('opt.answers.sourceTitle')} subtitle={t('opt.answers.sourceSub')} icon={<DuoArt name="console" size={22} />} />
+              <Toggle
+                label={t('opt.answers.fromPayload')}
+                hint={t('opt.answers.fromPayloadHint')}
+                checked={s.answers.fromPayload}
+                disabled={!s.answers.enabled}
+                onChange={(next) => void patch((draft) => void (draft.answers.fromPayload = next))}
+              />
+              <Toggle
+                label={t('opt.answers.learnFromSkip')}
+                hint={t('opt.answers.learnFromSkipHint')}
+                checked={s.answers.learnFromSkip}
+                disabled={!s.answers.enabled}
+                onChange={(next) => void patch((draft) => void (draft.answers.learnFromSkip = next))}
+              />
+              {!s.answers.fromPayload && !s.answers.learnFromSkip ? (
+                <p className="hint">{t('opt.answers.noSource')}</p>
+              ) : null}            </Card>
+
+            <Card>
+              <CardHeader title={t('opt.answers.behaviourTitle')} subtitle={t('opt.answers.behaviourSub')} icon={<DuoArt name="sliders" size={22} />} />
+              <Stepper
+                label={t('opt.answers.think')}
+                hint={t('opt.answers.thinkHint')}
+                suffix="ms"
+                value={s.answers.thinkMs}
+                min={0}
+                max={8000}
+                step={100}
+                disabled={!s.answers.enabled}
+                onChange={(next) => void patch((draft) => void (draft.answers.thinkMs = next))}
+              />
+              <Stepper
+                label={t('opt.answers.cap')}
+                hint={t('opt.answers.capHint')}
+                value={s.answers.maxPerLesson}
+                min={0}
+                max={60}
+                step={5}
+                disabled={!s.answers.enabled}
+                onChange={(next) => void patch((draft) => void (draft.answers.maxPerLesson = next))}
+              />
+              <Toggle
+                label={t('opt.answers.autoSubmit')}
+                hint={t('opt.answers.autoSubmitHint')}
+                checked={s.answers.autoSubmit}
+                disabled={!s.answers.enabled}
+                onChange={(next) => void patch((draft) => void (draft.answers.autoSubmit = next))}
+              />
+            </Card>
+
+            <Card>
+              <CardHeader
+                title={t('opt.answers.bookTitle')}
+                subtitle={t('opt.answers.bookSub')}
+                icon={<DuoArt name="archive" size={22} />}
+                action={
+                  answers && answers.count > 0 ? (
+                    <Button size="sm" variant="ghost" icon={<TrashIcon size={15} />} onClick={() => void clearAnswerBook()}>
+                      {t('opt.answers.bookClear')}
+                    </Button>
+                  ) : null
+                }
+              />
+              {answers && answers.count > 0 ? (
+                <>
+                  <div className="kv">
+                    <div>
+                      <span>{t('opt.answers.bookTitle')}</span>
+                      <b>{formatNumber(answers.count)}</b>
+                    </div>
+                  </div>
+                  <ul className="answer-list">
+                    {answers.recent.map((entry) => (
+                      <li key={entry.prompt}>
+                        <b>{entry.prompt}</b>
+                        <em>{entry.text}</em>
+                      </li>
+                    ))}
+                  </ul>
+                </>
+              ) : (
+                <EmptyState icon={<DuoArt name="archive" size={28} />} title={t('opt.answers.bookTitle')} body={t('opt.answers.bookEmpty')} />
+              )}
+            </Card>
+
+            <Card tone="blue">
+              <CardHeader title={t('opt.answers.typesTitle')} icon={<DuoArt name="tasks" size={22} />} />
+              <p className="hint">{t('opt.answers.typesSupported')}</p>
+              <Divider />
+              <p className="hint">{t('opt.answers.typesRefused')}</p>
+            </Card>
+          </div>
+        ) : null}
+
         {section === 'rewards' ? (
           <div className="stack">
             <Card>
               <CardHeader
                 title={t('opt.rewards.title')}
                 subtitle={t('opt.rewards.sub')}
-                icon={<GemIcon size={18} />}
+                icon={<DuoArt name="gem" size={24} />}
                 action={
                   <Toggle
                     label=""
@@ -891,7 +1071,7 @@ export function Options() {
               <CardHeader
                 title={t('opt.rewards.badges')}
                 subtitle={t('opt.rewards.badgesSub')}
-                icon={<TrophyIcon size={18} />}
+                icon={<DuoArt name="badge" size={22} />}
                 action={
                   <Toggle
                     label=""
@@ -940,7 +1120,7 @@ export function Options() {
               <CardHeader
                 title={t('opt.rewards.freeze')}
                 subtitle={t('opt.rewards.freezeSub')}
-                icon={<ShieldIcon size={18} />}
+                icon={<DuoArt name="freeze" size={22} />}
               />
               <Toggle
                 label={t('opt.rewards.freezeToggle')}
@@ -965,6 +1145,51 @@ export function Options() {
           </div>
         ) : null}
 
+        {section === 'shop' ? (
+          <div className="stack">
+            <Card tone="gold">
+              <CardHeader
+                title={t('shop.title')}
+                subtitle={t('shop.sub')}
+                icon={<DuoArt name="gem" size={20} />}
+                action={<Pill tone="gold">{t('shop.balance', { gems: state.profile?.gems ?? 0 })}</Pill>}
+              />
+              <p className="hint">{shop?.source === 'live' ? t('shop.live') : t('shop.reference')}</p>
+              {shop?.error ? <p className="hint">{shop.error}</p> : null}
+            </Card>
+
+            <Card>
+              {!shop ? (
+                <p className="hint">{t('shop.loading')}</p>
+              ) : shop.items.length === 0 ? (
+                <p className="hint">{t('shop.empty')}</p>
+              ) : (
+                shop.items.map((item) => (
+                  <div className="shop-row" key={item.id}>
+                    <div className="shop-row__meta">
+                      <b>{item.name}</b>
+                      {item.note ? <span className="hint">{item.note}</span> : null}
+                    </div>
+                    <div className="shop-row__buy">
+                      {item.priceGems !== null ? (
+                        <Pill tone="gold">{t('shop.price', { gems: item.priceGems })}</Pill>
+                      ) : null}
+                      <Button
+                        variant="secondary"
+                        loading={shopBusy === item.id}
+                        disabled={shopBusy !== null}
+                        onClick={() => void buyShopItem(item.id)}
+                      >
+                        {t('shop.buy')}
+                      </Button>
+                    </div>
+                  </div>
+                ))
+              )}
+            </Card>
+          </div>
+        ) : null}
+
         {section === 'activity' ? (
           <div className="stack">
             <WeeklyReport stats={state.stats} dailyGoal={s.practice.dailyXpGoal} />
@@ -974,7 +1199,7 @@ export function Options() {
                 <CardHeader
                   title={t('opt.activity.forecast')}
                   subtitle={t(forecast.headline.key as MessageKey, forecast.headline.vars)}
-                  icon={<FlameIcon size={18} />}
+                  icon={<DuoArt name="streak" size={24} />}
                   action={
                     <Pill tone={forecast.slack > 0 ? 'green' : 'red'}>
                       {forecast.slack === 1 ? t('forecast.daysSlackOne') : t('forecast.daysSlack', { n: forecast.slack })}
@@ -989,7 +1214,7 @@ export function Options() {
               <CardHeader
                 title={t('opt.activity.heatmap')}
                 subtitle={t('opt.activity.heatmapSub')}
-                icon={<ChartIcon size={18} />}
+                icon={<DuoArt name="heatmap" size={22} />}
                 action={<Pill tone="green">{t('opt.activity.logged', { xp: formatNumber(state.stats.xp) })}</Pill>}
               />
               <div className="heat-wrap">
@@ -1014,7 +1239,7 @@ export function Options() {
               <CardHeader
                 title={t('opt.activity.achievements')}
                 subtitle={t('opt.activity.unlocked', { n: badgeCount.unlocked, total: badgeCount.total })}
-                icon={<TrophyIcon size={18} />}
+                icon={<DuoArt name="badge" size={22} />}
                 action={
                   <Pill tone={badgeCount.unlocked > 0 ? 'gold' : 'neutral'}>{Math.round(badgeCount.ratio * 100)}%</Pill>
                 }
@@ -1026,7 +1251,7 @@ export function Options() {
               <CardHeader
                 title={t('opt.activity.history')}
                 subtitle={t('opt.activity.historySub', { n: runs.length })}
-                icon={<HistoryIcon size={18} />}
+                icon={<DuoArt name="log" size={22} />}
                 action={
                   <Button size="sm" variant="secondary" icon={<DownloadIcon size={15} />} onClick={() => exportHistory(runs)}>
                     {t('common.export')}
@@ -1034,7 +1259,7 @@ export function Options() {
                 }
               />
               {runs.length === 0 ? (
-                <EmptyState icon={<HistoryIcon size={22} />} title={t('opt.activity.noRuns')} body={t('opt.activity.noRunsBody')} />
+                <EmptyState icon={<DuoArt name="log" size={34} />} title={t('opt.activity.noRuns')} body={t('opt.activity.noRunsBody')} />
               ) : (
                 <ul className="run-list">
                   {runs.slice(0, 25).map((run) => (
@@ -1052,7 +1277,7 @@ export function Options() {
               <CardHeader
                 title={t('opt.schedule.title')}
                 subtitle={t('opt.schedule.sub')}
-                icon={<CalendarIcon size={18} />}
+                icon={<DuoArt name="navSchedule" size={22} />}
                 action={
                   <Toggle
                     label=""
@@ -1091,7 +1316,7 @@ export function Options() {
               <CardHeader
                 title={t('opt.schedule.guard')}
                 subtitle={t('opt.schedule.guardSub')}
-                icon={<FlameIcon size={18} />}
+                icon={<DuoArt name="streak" size={24} />}
                 action={
                   <Toggle
                     label=""
@@ -1136,7 +1361,7 @@ export function Options() {
               <CardHeader
                 title={t('opt.schedule.watch')}
                 subtitle={t('opt.schedule.watchSub')}
-                icon={<AlertIcon size={18} />}
+                icon={<DuoArt name="bell" size={22} />}
                 action={
                   <Toggle
                     label=""
@@ -1181,7 +1406,7 @@ export function Options() {
               <CardHeader
                 title={t('opt.schedule.pause')}
                 subtitle={t('opt.schedule.pauseSub')}
-                icon={<CalendarIcon size={18} />}
+                icon={<DuoArt name="navSchedule" size={22} />}
                 action={
                   <Toggle
                     label=""
@@ -1211,7 +1436,7 @@ export function Options() {
             </Card>
 
             <Card>
-              <CardHeader title={t('opt.schedule.quiet')} subtitle={t('opt.schedule.quietSub')} icon={<MoonIcon size={18} />} />
+              <CardHeader title={t('opt.schedule.quiet')} subtitle={t('opt.schedule.quietSub')} icon={<DuoArt name="moon" size={22} />} />
               <Toggle
                 label={t('opt.schedule.quietToggle')}
                 checked={s.schedule.quietHours.enabled}
@@ -1241,7 +1466,7 @@ export function Options() {
               <CardHeader
                 title={t('plan.title')}
                 subtitle={t('plan.sub')}
-                icon={<TargetIcon size={18} />}
+                icon={<DuoArt name="target" size={22} />}
               />
               <PlanPreview
                 settings={s}
@@ -1255,7 +1480,7 @@ export function Options() {
         {section === 'safety' ? (
           <div className="stack">
             <Card tone="gold">
-              <CardHeader title={t('opt.safety.readTitle')} subtitle={t('opt.safety.readSub')} icon={<AlertIcon size={18} />} />
+              <CardHeader title={t('opt.safety.readTitle')} subtitle={t('opt.safety.readSub')} icon={<DuoArt name="warning" size={22} />} />
               <p className="hint">{t('opt.safety.readBody')}</p>
             </Card>
 
@@ -1263,7 +1488,7 @@ export function Options() {
               <CardHeader
                 title={t('opt.safety.behaviour')}
                 subtitle={t('opt.safety.behaviourSub')}
-                icon={<ShieldIcon size={18} />}
+                icon={<DuoArt name="navSafety" size={22} />}
               />
               <Toggle
                 label={t('opt.safety.dryRun')}
@@ -1299,13 +1524,19 @@ export function Options() {
                 checked={s.behavior.keepServiceWorkerAlive}
                 onChange={(next) => void patch((draft) => void (draft.behavior.keepServiceWorkerAlive = next))}
               />
+              <Toggle
+                label={t('opt.safety.runOnLesson')}
+                hint={t('opt.safety.runOnLessonHint')}
+                checked={s.behavior.runOnLesson}
+                onChange={(next) => void patch((draft) => void (draft.behavior.runOnLesson = next))}
+              />
             </Card>
 
             <Card tone={state.pacing.rateLimitHits > 0 ? 'gold' : 'default'}>
               <CardHeader
                 title={t('opt.safety.pacing')}
                 subtitle={t('opt.safety.pacingSub')}
-                icon={<ClockIcon size={18} />}
+                icon={<DuoArt name="gauge" size={22} />}
                 action={
                   <Pill tone={state.pacing.rateLimitHits > 0 ? 'gold' : 'green'}>
                     ×{state.pacing.factor}
@@ -1332,7 +1563,7 @@ export function Options() {
             </Card>
 
             <Card tone="red">
-              <CardHeader title={t('opt.safety.pro')} subtitle={t('opt.safety.proSub')} icon={<GlobeIcon size={18} />} />
+              <CardHeader title={t('opt.safety.pro')} subtitle={t('opt.safety.proSub')} icon={<DuoArt name="plug" size={22} />} />
               <p className="hint">{t('opt.safety.proBody')}</p>
               <Toggle
                 label={t('opt.safety.proEnable')}
@@ -1363,7 +1594,7 @@ export function Options() {
         {section === 'appearance' ? (
           <div className="stack">
             <Card>
-              <CardHeader title={t('opt.appearance.theme')} subtitle={t('opt.appearance.themeSub')} icon={<SunIcon size={18} />} />
+              <CardHeader title={t('opt.appearance.theme')} subtitle={t('opt.appearance.themeSub')} icon={<DuoArt name="navAppearance" size={22} />} />
               <Segmented<ThemePreference>
                 value={s.ui.theme}
                 onChange={(value) => void patch((draft) => void (draft.ui.theme = value))}
@@ -1393,7 +1624,7 @@ export function Options() {
             </Card>
 
             <Card>
-              <CardHeader title={t('opt.appearance.palette')} subtitle={t('opt.appearance.paletteSub')} icon={<SparkleIcon size={18} />} />
+              <CardHeader title={t('opt.appearance.palette')} subtitle={t('opt.appearance.paletteSub')} icon={<DuoArt name="palette" size={22} />} />
               <div className="swatches">
                 {[
                   ['Feather Green', '#58cc02'],
@@ -1422,7 +1653,7 @@ export function Options() {
               <CardHeader
                 title={t('opt.data.history')}
                 subtitle={t('opt.data.historySub', { runs: formatNumber(state.stats.runs), xp: formatNumber(state.stats.xp) })}
-                icon={<HistoryIcon size={18} />}
+                icon={<DuoArt name="log" size={22} />}
                 action={
                   <Button size="sm" variant="ghost" icon={<TrashIcon size={15} />} onClick={() => void app.clearHistory()}>
                     {t('common.clear')}
@@ -1452,7 +1683,7 @@ export function Options() {
             </Card>
 
             <Card>
-              <CardHeader title={t('opt.data.backup')} subtitle={t('opt.data.backupSub')} icon={<DownloadIcon size={18} />} />
+              <CardHeader title={t('opt.data.backup')} subtitle={t('opt.data.backupSub')} icon={<DuoArt name="archive" size={22} />} />
               <div className="row-actions">
                 <Button
                   size="sm"
@@ -1496,7 +1727,7 @@ export function Options() {
             </Card>
 
             <Card>
-              <CardHeader title={t('opt.data.recent')} subtitle={t('opt.data.recentSub')} icon={<SlidersIcon size={18} />} />
+              <CardHeader title={t('opt.data.recent')} subtitle={t('opt.data.recentSub')} icon={<DuoArt name="console" size={22} />} />
               <LogConsole logs={state.logs} height={200} />
             </Card>
           </div>
@@ -1521,7 +1752,7 @@ export function Options() {
             </Card>
 
             <Card>
-              <CardHeader title={t('opt.about.what')} subtitle={t('opt.about.whatSub')} icon={<RocketIcon size={18} />} />
+              <CardHeader title={t('opt.about.what')} subtitle={t('opt.about.whatSub')} icon={<DuoArt name="navAbout" size={22} />} />
               <div className="about__grid">
                 <div>
                   <b>{t('task.practice')}</b>
@@ -1551,7 +1782,7 @@ export function Options() {
             </Card>
 
             <Card>
-              <CardHeader title={t('opt.about.shortcuts')} icon={<TargetIcon size={18} />} />
+              <CardHeader title={t('opt.about.shortcuts')} icon={<DuoArt name="keyboard" size={22} />} />
               <div className="kv">
                 <div>
                   <span>{t('opt.about.shortcutRun')}</span>

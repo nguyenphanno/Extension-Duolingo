@@ -6,7 +6,7 @@
 
 **A Manifest V3 browser extension that runs your Duolingo routine for you.**
 
-Practice sessions · reward sweeps · monthly badges · streak freezes — driven from a UI built on Duolingo's own fonts, palette and icon language. **English and Vietnamese.**
+Practice sessions · reward sweeps · monthly badges · streak freezes — driven from a UI built on Duolingo's own fonts, palette, and its actual gem/heart/flame/XP artwork (see `public/duo/`). **English and Vietnamese.**
 
 <sub>TypeScript 5.7 · React 18 · esbuild · zero runtime dependencies beyond React</sub>
 
@@ -60,6 +60,9 @@ Six tasks run in a fixed, weighted order. Each one is a single file in `src/Core
 | **Last call** | A second daily alarm that *asks* instead of acting: a notification with **Run now** / **Snooze 1h** buttons. Nothing is sent until you answer |
 | **Vacation window** | An inclusive date range in which nothing runs — not the interval, not the guard, not the nudge |
 | **Triggers** | Button · alarm · context menu · keyboard command · the pill injected on duolingo.com |
+| **Lesson HUD** | A panel that appears by itself on `/lesson` pages and shows the run live. With *start when a lesson opens* enabled it begins on its own — but it never clicks the page |
+| **Auto-answer** | Optional. Fills in a lesson while you watch: reads each challenge, works out the answer, taps the tiles or types the text, and pauses between steps. Answers come from the lesson payload (free) or, if you allow it, from pressing Skip and remembering what Duolingo reveals. It never guesses — an unknown or ambiguous challenge is left to you, and listening, speaking and pair-matching are never touched. |
+| **Shop** | Live prices from your account (reference prices if the endpoint is unreachable), gem balance, one-tap purchase of anything the shop sells |
 
 ### Observability
 
@@ -80,6 +83,8 @@ Six tasks run in a fixed, weighted order. Each one is a single file in `src/Core
 
 Four surfaces, one design system. Every colour, radius and "push" depth comes from `src/Ui/Tokens/Tokens.css`.
 
+Icons split in two. Anything that names a *thing* — gem, heart, streak, XP, every sidebar section, every card header — is full-colour artwork rendered by `DuoArt`. Only line furniture that has to inherit `currentColor` (chevrons, ticks, sliders, the alert triangle) is still a glyph in `Icons.tsx`.
+
 <table>
 <tr>
 <td width="50%"><img src="docs/screenshots/popup.png" alt="Popup, light" /></td>
@@ -91,7 +96,9 @@ Four surfaces, one design system. Every colour, radius and "push" depth comes fr
 </tr>
 </table>
 
-**Options** — nine sections, deep-linkable (`Options.html?section=activity`), with a sticky sidebar and a command palette.
+`npm run shots` regenerates all ten captures, including the Tasks tab (`popup-tasks.png`) and a full Vietnamese pass (`popup-vi.png`, `options-vi.png`, …) that exists to prove the longer labels don't overflow.
+
+**Options** — eleven sections, deep-linkable (`Options.html?section=answers`), with a sticky sidebar and a command palette.
 
 ![Options page, Activity section](docs/screenshots/options.png)
 
@@ -151,14 +158,14 @@ src/
 ├── Manifest/          manifest.json — version injected from package.json at build time
 ├── Shared/            dependency-free layer: types, protocol, result, presets, logger, utils
 │   ├── Bridge/        ExtensionBridge (chrome.*) or MockData (preview)
-│   └── Utils/         Time · Format · Id · Forecast · Achievements
+│   └── Utils/         Time · Format · Id · Forecast · Achievements · Answers (the auto-answer decision layer)
 ├── Core/              pure domain logic, no chrome.* imports, fully testable
 │   ├── Auth/          Jwt · TokenProvider
 │   ├── Http/          HttpClient · Endpoints · DuolingoApi · ProApi
-│   ├── Storage/       StorageArea · SettingsRepository · HistoryRepository
+│   ├── Storage/       StorageArea · SettingsRepository · HistoryRepository · AnswerBook
 │   └── Automation/    AutomationEngine · TaskRegistry · Tasks/ (6 files)
 ├── Background/        ServiceWorker + MessageRouter · RunCoordinator · Scheduler · PortHub · NotificationService
-├── Content/           the pill injected into duolingo.com (Shadow DOM)
+├── Content/           the pill injected into duolingo.com (Shadow DOM) · MainWorld (the fetch hook) · Lesson/ (reader, actor, pilot)
 ├── Ui/                design system — tokens, icons, primitives, hooks
 └── Apps/              Popup · Options · SidePanel · Preview
 ```
@@ -172,6 +179,8 @@ src/
 | `Scripts/MakeDiagrams.mjs` | Generates the three SVGs above from arithmetic, so they are reproducible and diffable. |
 | `Scripts/CaptureShots.mjs` | Drives Chrome over CDP to photograph each surface at its real size, in both themes. |
 | `public/icon-source.png` | Artwork master. Replace it, run `npm run icons`, done. |
+| `public/duo/` | Duolingo's real gem / heart / streak-flame / XP-bolt SVGs, rendered by `DuoArt`. Vendored rather than hotlinked: the CDN names files by content hash, so a hotlink breaks on their next artwork deploy. Listed in `web_accessible_resources` so the content-script HUD can use them too. |
+| `public/duo/nav/` | The subject icons — 23 files. Storefront, chest, shield, house and the "more" dots are Duolingo's own; the rest are drawn to match: dumbbell, chart, calendar, contrast, cylinders, clipboard, clock, medal, bolts, crown, snowflake, trend arrow, star, bullseye, heatmap grid, key, archive box, keyboard. Same 46×46 grid, flat fills, two or three tones. `tests/DuoArt.test.ts` keeps the folder and `DuoArt`'s map in sync. |
 | `docs/` | Generated diagrams and screenshots — not shipped in the extension. |
 
 ---
@@ -212,8 +221,9 @@ Everything lives in `chrome.storage.local` under three keys: `settings`, `histor
 | **Practice** | Sessions, session length, gaps, stop-on-error, **XP budget**, **Goal mode**, **Auto-size** |
 | **Activity** | Streak forecast, heatmap, achievements, run history |
 | **Rewards & badges** | Rewards sweep, claim cap, badge check, PRO bridge routing |
+| **Shop** | Live catalogue, gem balance, one-tap purchase |
 | **Schedule** | Interval, weekday picker, quiet hours, run on startup, **streak guard time**, **last call**, **vacation window** |
-| **Safety & PRO** | Dry run, cooldown, notification toggles, the two-step PRO gate |
+| **Safety & PRO** | Dry run, cooldown, notification toggles, start-on-lesson, the two-step PRO gate |
 | **Appearance** | Theme (light/dark/system), locale (en/vi) |
 | **Data** | Export history, copy settings, import, clear history, reset |
 | **About** | Version, capability summary, shortcuts, links |
@@ -253,7 +263,7 @@ Automation is inherently risky, so the risky parts are opt-in and visible rather
 | `npm run diagrams` | Regenerate `docs/diagrams/*.svg` |
 | `npm run shots` | Recapture `docs/screenshots/*.png` (build first) |
 | `npm run docs` | Both of the above |
-| `npm run test` | Run the `node:test` suite via `tsx` (124 tests across Forecast, Settings, TaskRegistry, Achievements, Time, HttpClient, DuolingoApi, PlanSize, Insurance, FreezeTask, Pause) |
+| `npm run test` | Run the `node:test` suite via `tsx` (146 tests across Forecast, Settings, TaskRegistry, Achievements, Time, HttpClient, DuolingoApi, PlanSize, Insurance, FreezeTask, Pause, Shop, Route) |
 | `npm run copyright` | Stamp/verify the copyright header on every source file |
 | `npm run clean` | Remove `dist/` |
 
@@ -264,6 +274,8 @@ The `Preview` app is not referenced by the manifest: it renders all three surfac
 ## Limits
 
 - **Unofficial.** Not affiliated with, endorsed by, or supported by Duolingo.
+- **DOM automation is opt-in and scoped.** The only code that clicks Duolingo's interface is auto-answer, and it is off by default. When on, it fills the challenge on screen and stops; it never opens lessons, navigates the site, or submits anything you did not ask for. Everything else — practice sessions, rewards, badges, freezes — goes through the API, not the page.
+- **The auto-answer never guesses.** It acts only when it can read the challenge *and* knows an answer that fits it exactly. An unknown, unreadable or ambiguous challenge is left for you; listening, speaking, character and pair-matching types are refused unconditionally. Learning by skipping costs one exercise per new sentence, is off by default, and disables itself for the rest of a lesson the first time a reveal cannot be read.
 - **Terms of service.** Automation may violate them, and accounts have been restricted for less. Use it on an account you own, at a volume you would be comfortable defending.
 - **Endpoints move.** The API shapes in `src/Core/Http/Endpoints.ts` are the part most likely to break first. When something starts returning `4xx`, look there.
 - **No cloud sync.** By design. Settings and history are per-browser-profile.
@@ -287,9 +299,13 @@ The `src/Core/` and `src/Shared/Utils/` layers are pure functions with zero `chr
 | `Insurance.test.ts` | Freeze policy: today's XP counts as cover, target ceiling, no streak, zero target |
 | `FreezeTask.test.ts` | Top-up vs. insurance wiring: how many purchases, dry run, 400 as "already full", first-failure propagation |
 | `Pause.test.ts` | Vacation window: inclusive bounds, open-ended sides, single day, year boundary |
+| `Answers.test.ts` | The auto-answer decision layer: normalisation (quotes, accents, punctuation), longest-span tile matching including elision and backtracking, ambiguous-option refusal, per-type plans, fail-closed behaviour |
+| `AnswerBook.test.ts` | The sentence memory: merge-without-overwrite, one-time learning, corrupt blob handling, oldest-first pruning at the cap, flush and reload |
+| `Shop.test.ts` | Catalogue merge (live price wins, unknown ids, reference labelling) and the shop calls — no automatic retry on a purchase |
+| `Route.test.ts` | The lesson-page predicate behind the HUD: prefix matching, query params, non-URLs |
 
 ```bash
-npm test              # → 124 tests, ~6s
+npm test              # → 146 tests, ~6s
 ```
 
 <div align="center">

@@ -33,6 +33,12 @@
   "content_scripts": [
     {
       "matches": ["https://*.duolingo.com/*"],
+      "js": ["MainWorld.js"],
+      "run_at": "document_start",
+      "world": "MAIN"
+    },
+    {
+      "matches": ["https://*.duolingo.com/*"],
       "js": ["ContentScript.js"],
       "run_at": "document_idle"
     }
@@ -49,7 +55,7 @@
   },
   "web_accessible_resources": [
     {
-      "resources": ["assets/*", "icons/*"],
+      "resources": ["assets/*", "icons/*", "duo/*"],
       "matches": ["https://*.duolingo.com/*"]
     }
   ]

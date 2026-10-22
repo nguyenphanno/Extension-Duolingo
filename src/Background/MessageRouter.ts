@@ -9,9 +9,11 @@ import { parseToken } from '@Core/Auth/Jwt';
 import { tokenProvider } from '@Core/Auth/TokenProvider';
 import { createDuoHttpClient } from '@Core/Http/HttpClient';
 import { DuolingoApi } from '@Core/Http/DuolingoApi';
+import { AnswerBook } from '@Core/Storage/AnswerBook';
 import { logger } from '@Shared/Logger';
 import type { StreamEvent, UiRequest, UiResponse } from '@Shared/Protocol';
 import { err, ok } from '@Shared/Result';
+import { mergeShop } from '@Shared/ShopCatalog';
 import type { AppContext } from './AppContext';
 import type { RunCoordinator } from './RunCoordinator';
 import type { Scheduler } from './Scheduler';
@@ -20,6 +22,14 @@ export interface RouterDeps {
   app: AppContext;
   coordinator: RunCoordinator;
   scheduler: Scheduler;
+}
+
+/** One place that turns stored credentials into an API client. */
+async function duoApi(app: AppContext): Promise<DuolingoApi> {
+  const settings = await app.settings.load();
+  const token = await tokenProvider.resolve({ source: settings.tokenSource, manualToken: settings.manualToken });
+  const parsed = parseToken(token);
+  return new DuolingoApi(createDuoHttpClient(parsed.token), parsed.userId);
 }
 
 export async function route(request: UiRequest, deps: RouterDeps, sender?: chrome.runtime.MessageSender): Promise<UiResponse> {
@@ -58,23 +68,58 @@ export async function route(request: UiRequest, deps: RouterDeps, sender?: chrom
       }
 
       case 'profile/refresh': {
-        const settings = await app.settings.load();
-        const token = await tokenProvider.resolve({
-          source: settings.tokenSource,
-          manualToken: settings.manualToken,
-        });
-        const parsed = parseToken(token);
-        const api = new DuolingoApi(createDuoHttpClient(parsed.token), parsed.userId);
+        const api = await duoApi(app);
         const profile = await api.getProfile();
         app.setProfile(profile);
         await app.pushState();
         return ok(profile);
       }
 
+      case 'shop/list': {
+        const api = await duoApi(app);
+        try {
+          return ok({ items: mergeShop(await api.getShop()), source: 'live' as const });
+        } catch (error) {
+          // Reference prices beat an empty screen — as long as we say so.
+          return ok({
+            items: mergeShop(null),
+            source: 'catalog' as const,
+            error: (error as Error).message,
+          });
+        }
+      }
+
+      case 'shop/buy': {
+        const api = await duoApi(app);
+        const result = await api.buyItem(request.itemId);
+        app.log.info(`Shop: bought ${request.itemId} (HTTP ${result.status}).`);
+        // Gems moved, so the cached profile is stale by definition.
+        try {
+          app.setProfile(await api.getProfile());
+        } catch {
+          /* best effort — the purchase already landed */
+        }
+        await app.pushState();
+        return ok(result);
+      }
+
       case 'run/start': {
         if (coordinator.isRunning) return err(new Error('A run is already in progress.'));
         const result = await coordinator.start(request.trigger ?? 'manual', request.only);
         return result;
+      }
+
+      case 'answers/stats': {
+        const book = new AnswerBook();
+        await book.load();
+        return ok(book.stats());
+      }
+
+      case 'answers/clear': {
+        const book = new AnswerBook();
+        await book.clear();
+        app.log.info('Answers: the remembered sentences were cleared.');
+        return ok({ cleared: true });
       }
 
       case 'run/cancel':

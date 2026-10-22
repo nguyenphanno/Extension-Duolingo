@@ -9,9 +9,10 @@
 import { PORT_NAME } from '../Constants';
 import type { StreamEvent, UiRequest, UiState } from '../Protocol';
 import { err, ok, type Result } from '../Result';
+import { mergeShop } from '../ShopCatalog';
 import type { LogEntry, RunSummary, Settings, TaskKey } from '../Types';
 import { createId } from '../Utils/Id';
-import { MOCK_LOGS, MOCK_PROFILE, MOCK_RUNS, MOCK_STATS, MOCK_SUMMARY, mockState } from './MockData';
+import { MOCK_ANSWERS, MOCK_LOGS, MOCK_PROFILE, MOCK_RUNS, MOCK_STATS, MOCK_SUMMARY, mockState } from './MockData';
 
 export interface Bridge {
   readonly mode: 'extension' | 'preview';
@@ -250,6 +251,24 @@ class PreviewBridge implements Bridge {
       case 'panel/open':
       case 'tab/open':
         return ok({ opened: false, reason: 'Preview mode' } as T);
+
+      // The preview renders the shop from the reference catalogue, which is
+      // exactly the shape the real UI gets when the endpoint is unreachable.
+      case 'shop/list':
+        return ok({ items: mergeShop(null), source: 'catalog' } as T);
+
+      case 'shop/buy':
+        return ok({ status: 200 } as T);
+
+      // Preview: a believable answer book, so the section renders with content
+      // instead of an empty state nobody ever looks at.
+      case 'answers/stats':
+        return ok(MOCK_ANSWERS as T);
+
+      case 'answers/clear':
+        MOCK_ANSWERS.count = 0;
+        MOCK_ANSWERS.recent = [];
+        return ok({ cleared: true } as T);
 
       default:
         return err(new Error('Unsupported in preview mode.'));

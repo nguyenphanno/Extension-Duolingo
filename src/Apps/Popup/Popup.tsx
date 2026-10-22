@@ -29,13 +29,9 @@ import { LogConsole } from '@Ui/Components/LogConsole';
 import { ToastStack } from '@Ui/Components/Toast';
 import {
   AlertIcon,
-  BoltIcon,
   ChartIcon,
   CheckIcon,
   ClockIcon,
-  FlameIcon,
-  GemIcon,
-  HeartIcon,
   HistoryIcon,
   KeyIcon,
   PlayIcon,
@@ -44,20 +40,19 @@ import {
   SlidersIcon,
   SparkleIcon,
   StopIcon,
-  TargetIcon,
-  TrophyIcon,
 } from '@Ui/Icons/Icons';
+import { DuoArt } from '@Ui/Icons/DuoArt';
 import './Popup.css';
 
 type Tab = 'home' | 'tasks' | 'log';
 
 const TASK_META: Record<TaskKey, { label: MessageKey; hint: MessageKey; icon: JSX.Element }> = {
-  practice: { label: 'task.practice', hint: 'task.practice.hint', icon: <BoltIcon size={18} /> },
-  rewards: { label: 'task.rewards', hint: 'task.rewards.hint', icon: <GemIcon size={18} /> },
-  badge: { label: 'task.badge', hint: 'task.badge.hint', icon: <TrophyIcon size={18} /> },
-  boost: { label: 'task.boost', hint: 'task.boost.hint', icon: <SparkleIcon size={18} /> },
-  super: { label: 'task.super', hint: 'task.super.hint', icon: <RocketIcon size={18} /> },
-  freeze: { label: 'task.freeze', hint: 'task.freeze.hint', icon: <TargetIcon size={18} /> },
+  practice: { label: 'task.practice', hint: 'task.practice.hint', icon: <DuoArt name="xp" size={20} /> },
+  rewards: { label: 'task.rewards', hint: 'task.rewards.hint', icon: <DuoArt name="gem" size={20} /> },
+  badge: { label: 'task.badge', hint: 'task.badge.hint', icon: <DuoArt name="badge" size={20} /> },
+  boost: { label: 'task.boost', hint: 'task.boost.hint', icon: <DuoArt name="boost" size={20} /> },
+  super: { label: 'task.super', hint: 'task.super.hint', icon: <DuoArt name="crown" size={20} /> },
+  freeze: { label: 'task.freeze', hint: 'task.freeze.hint', icon: <DuoArt name="freeze" size={20} /> },
 };
 
 const PRESET_LABEL: Record<string, MessageKey> = {
@@ -156,7 +151,7 @@ export function Popup() {
             {atRisk ? (
               <Card tone="gold" className="notice">
                 <div className="notice__row">
-                  <FlameIcon size={18} />
+                  <DuoArt name="streak" size={24} />
                   <div>
                     <strong>{t('popup.riskTitle')}</strong>
                     <p>{t('popup.riskBody', { streak: profile?.streak ?? 0 })}</p>
@@ -191,21 +186,21 @@ export function Popup() {
                 </div>
               </div>
               <div className="identity__streak">
-                <FlameIcon size={16} />
+                <DuoArt name="streak" size={24} />
                 <b>{profile?.streak ?? 0}</b>
               </div>
             </section>
 
             <div className="stat-grid">
               <Stat
-                icon={<BoltIcon size={16} />}
+                icon={<DuoArt name="xp" size={24} />}
                 value={formatCompact(profile?.totalXp ?? 0)}
                 label={t('popup.statXp')}
                 tone="gold"
               />
-              <Stat icon={<GemIcon size={16} />} value={formatCompact(profile?.gems ?? 0)} label={t('popup.statGems')} tone="blue" />
+              <Stat icon={<DuoArt name="gem" size={24} />} value={formatCompact(profile?.gems ?? 0)} label={t('popup.statGems')} tone="blue" />
               <Stat
-                icon={<HeartIcon size={16} />}
+                icon={<DuoArt name="heart" size={26} />}
                 value={`${profile?.hearts ?? 5}/${profile?.maxHearts ?? 5}`}
                 label={t('popup.statHearts')}
                 tone="red"
@@ -295,7 +290,7 @@ export function Popup() {
               <CardHeader
                 title={t('popup.fortnight')}
                 subtitle={t('popup.fortnightSub', { xp: formatNumber(stats.xp), runs: stats.runs })}
-                icon={<ChartIcon size={18} />}
+                icon={<DuoArt name="fortnight" size={22} />}
                 action={<Pill tone="green">{t('popup.okRate', { rate: stats.successRate })}</Pill>}
               />
               <Bars data={stats.daily.map((point) => ({ label: point.day, value: point.xp }))} height={72} />
@@ -320,7 +315,7 @@ export function Popup() {
               </Card>
               <Card className="goal-row__streak">
                 <div className="streak-big">
-                  <FlameIcon size={22} />
+                  <DuoArt name="streak" size={34} />
                   <b>{profile?.streak ?? 0}</b>
                 </div>
                 <span className="u-upper u-faint">{t('popup.dayStreak')}</span>
@@ -337,7 +332,7 @@ export function Popup() {
               <CardHeader
                 title={t('popup.streakSafety')}
                 subtitle={t(forecast.headline.key as MessageKey, forecast.headline.vars)}
-                icon={<FlameIcon size={18} />}
+                icon={<DuoArt name="streak" size={24} />}
                 action={<Pill tone={forecast.slack > 0 ? 'green' : 'red'}>{t('popup.slackPill', { n: forecast.slack })}</Pill>}
               />
               <StreakForecastStrip forecast={forecast} dense showHeadline={false} />
@@ -348,7 +343,7 @@ export function Popup() {
         {tab === 'tasks' ? (
           <>
             <Card>
-              <CardHeader title={t('popup.runShape')} subtitle={t('popup.runShapeHint')} icon={<SparkleIcon size={18} />} />
+              <CardHeader title={t('popup.runShape')} subtitle={t('popup.runShapeHint')} icon={<DuoArt name="sliders" size={22} />} />
               <div className="preset-row">
                 {RUN_PRESETS.map((preset) => (
                   <button
@@ -368,7 +363,7 @@ export function Popup() {
               <CardHeader
                 title={t('popup.runPlan')}
                 subtitle={t('popup.runPlanHint')}
-                icon={<RocketIcon size={18} />}
+                icon={<DuoArt name="tasks" size={22} />}
                 action={<Pill tone="blue">{t('common.live')}</Pill>}
               />
               <div className="task-list">
@@ -392,7 +387,7 @@ export function Popup() {
             </Card>
 
             <Card>
-              <CardHeader title={t('popup.quickToggles')} subtitle={t('popup.quickTogglesHint')} icon={<SlidersIcon size={18} />} />
+              <CardHeader title={t('popup.quickToggles')} subtitle={t('popup.quickTogglesHint')} icon={<DuoArt name="toggles" size={22} />} />
               <Toggle
                 label={t('popup.toggleDryRun')}
                 hint={t('popup.toggleDryRunHint')}
@@ -426,7 +421,7 @@ export function Popup() {
             <CardHeader
               title={t('popup.console')}
               subtitle={run.currentLabel}
-              icon={<HistoryIcon size={18} />}
+              icon={<DuoArt name="console" size={22} />}
               action={
                 <IconButton label={t('popup.clearLog')} onClick={() => void app.clearLogs()}>
                   <AlertIcon size={16} />
@@ -461,9 +456,9 @@ export function Popup() {
       </main>
 
       <nav className="tabbar" aria-label={t('popup.sections')}>
-        <TabButton active={tab === 'home'} onClick={() => setTab('home')} icon={<TargetIcon size={18} />} label={t('popup.tabHome')} />
-        <TabButton active={tab === 'tasks'} onClick={() => setTab('tasks')} icon={<RocketIcon size={18} />} label={t('popup.tabTasks')} />
-        <TabButton active={tab === 'log'} onClick={() => setTab('log')} icon={<HistoryIcon size={18} />} label={t('popup.tabLog')} />
+        <TabButton active={tab === 'home'} onClick={() => setTab('home')} icon={<DuoArt name="navAccount" size={20} />} label={t('popup.tabHome')} />
+        <TabButton active={tab === 'tasks'} onClick={() => setTab('tasks')} icon={<DuoArt name="tasks" size={20} />} label={t('popup.tabTasks')} />
+        <TabButton active={tab === 'log'} onClick={() => setTab('log')} icon={<DuoArt name="log" size={20} />} label={t('popup.tabLog')} />
       </nav>
 
       <ToastStack items={app.toasts} onDismiss={app.dismissToast} />

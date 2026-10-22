@@ -27,6 +27,7 @@ const ENTRIES = {
   Preview: 'src/Apps/Preview/PreviewMain.tsx',
   ServiceWorker: 'src/Background/ServiceWorker.ts',
   ContentScript: 'src/Content/ContentScript.ts',
+  MainWorld: 'src/Content/MainWorld.ts',
 };
 
 const HTML_APPS = ['Popup', 'Options', 'SidePanel', 'Preview'];

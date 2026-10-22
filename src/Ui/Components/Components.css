@@ -233,6 +233,15 @@
   flex: none;
   background: color-mix(in srgb, currentColor 14%, transparent);
 }
+/* DuoArt is full-colour artwork with its own outline. A tinted disc behind it
+   double-frames the icon and muddies the fill, so the disc gets out of the way
+   and the artwork sets the slot's width. */
+.stat__icon:has(img) {
+  width: auto;
+  height: auto;
+  background: none;
+  border-radius: 0;
+}
 .stat__body {
   display: flex;
   flex-direction: column;
@@ -486,6 +495,12 @@
 }
 .toggle-row.is-disabled {
   opacity: 0.55;
+  cursor: not-allowed;
+}
+.stepper.is-disabled {
+  opacity: 0.55;
+}
+.stepper.is-disabled button {
   cursor: not-allowed;
 }
 .toggle-row__text {
@@ -1328,6 +1343,20 @@
   background: color-mix(in srgb, var(--duo-yellow) 26%, var(--bg));
   border-color: color-mix(in srgb, var(--duo-yellow) 60%, var(--border));
   color: var(--duo-orange-shadow);
+}
+/* Artwork keeps the disc as a layout slot but not the tint: a yellow bolt on a
+   yellow disc is one yellow blob. Locked badges desaturate the artwork instead,
+   which is what Duolingo does — currentColor no longer reaches inside an <img>. */
+.achievement__icon:has(img),
+.achievement.is-unlocked .achievement__icon:has(img) {
+  background: var(--bg-subtle);
+  border-color: var(--border);
+}
+.achievement.is-unlocked .achievement__icon:has(img) {
+  border-color: color-mix(in srgb, var(--duo-yellow) 60%, var(--border));
+}
+.achievement:not(.is-unlocked) .achievement__icon img {
+  filter: grayscale(1) opacity(0.42);
 }
 .achievement__body {
   display: flex;

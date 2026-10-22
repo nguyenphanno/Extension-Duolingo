@@ -6,7 +6,7 @@
  * defaults and every numeric field is clamped to its documented range. That
  * means a corrupted or hand-edited blob can never crash the automation.
  */
-import { DEFAULT_TIMEZONE, GUARD, LIMITS, SCHEMA_VERSION, STORAGE_KEYS, WATCH } from '@Shared/Constants';
+import { AUTO_ANSWER, AUTO_ANSWER_LIMITS, DEFAULT_TIMEZONE, GUARD, LIMITS, SCHEMA_VERSION, STORAGE_KEYS, WATCH } from '@Shared/Constants';
 import type { Settings } from '@Shared/Types';
 import { clamp } from '@Shared/Utils/Format';
 import { readRaw, writeRaw } from './StorageArea';
@@ -57,9 +57,18 @@ export const DEFAULT_SETTINGS: Settings = {
     badgeText: true,
     openSidePanelOnRun: false,
     keepServiceWorkerAlive: true,
+    runOnLesson: false,
     cooldownSeconds: 45,
   },
   ui: { theme: 'system', locale: 'en', reduceMotion: false },
+  answers: {
+    enabled: false,
+    fromPayload: true,
+    learnFromSkip: false,
+    thinkMs: AUTO_ANSWER.thinkMs,
+    maxPerLesson: 0,
+    autoSubmit: true,
+  },
 };
 
 /**
@@ -121,8 +130,37 @@ const MIGRATIONS: Array<{ toVersion: number; patch: (raw: Json) => void }> = [
       raw.schedule = schedule;
     },
   },
+  {
+    toVersion: 5,
+    patch(raw) {
+      // v4 → v5: the in-page lesson HUD, and its opt-in auto-start.
+      const behavior = isObject(raw.behavior) ? (raw.behavior as Json) : {};
+      if (behavior.runOnLesson === undefined) {
+        behavior.runOnLesson = false;
+        raw.behavior = behavior;
+      }
+    },
+  },
+  {
+    toVersion: 6,
+    patch(raw) {
+      // v5 → v6: the auto-answer solver. Master switch off, and the paid
+      // fallback (`learnFromSkip`) off separately — an upgrade must never start
+      // spending exercises on the user's behalf.
+      if (!isObject(raw.answers)) {
+        raw.answers = {
+          enabled: false,
+          fromPayload: true,
+          learnFromSkip: false,
+          thinkMs: AUTO_ANSWER.thinkMs,
+          maxPerLesson: 0,
+          autoSubmit: true,
+        };
+      }
+    },
+  },
   // Add future migrations here:
-  // { toVersion: 5, patch(raw) { … } },
+  // { toVersion: 7, patch(raw) { … } },
 ];
 
 /** Apply all migrations up to the current `SCHEMA_VERSION`. */
@@ -184,6 +222,7 @@ export function normaliseSettings(input: unknown): Settings {
   const behavior = isObject(raw.behavior) ? raw.behavior : {};
   const ui = isObject(raw.ui) ? raw.ui : {};
   const pro = isObject(raw.pro) ? raw.pro : {};
+  const answers = isObject(raw.answers) ? raw.answers : {};
 
   const years = Array.isArray(badges.years)
     ? badges.years.map((year) => Number(year)).filter((year) => Number.isInteger(year) && year >= 2020 && year <= 2100)
@@ -270,12 +309,26 @@ export function normaliseSettings(input: unknown): Settings {
       badgeText: bool(behavior.badgeText, d.behavior.badgeText),
       openSidePanelOnRun: bool(behavior.openSidePanelOnRun, d.behavior.openSidePanelOnRun),
       keepServiceWorkerAlive: bool(behavior.keepServiceWorkerAlive, d.behavior.keepServiceWorkerAlive),
+      runOnLesson: bool(behavior.runOnLesson, d.behavior.runOnLesson),
       cooldownSeconds: num(behavior.cooldownSeconds, d.behavior.cooldownSeconds, 0, 600),
     },
     ui: {
       theme: pickEnum(ui.theme, ['system', 'light', 'dark'] as const, d.ui.theme),
       locale: pickEnum(ui.locale, ['vi', 'en'] as const, d.ui.locale),
       reduceMotion: bool(ui.reduceMotion, d.ui.reduceMotion),
+    },
+    answers: {
+      enabled: bool(answers.enabled, d.answers.enabled),
+      fromPayload: bool(answers.fromPayload, d.answers.fromPayload),
+      learnFromSkip: bool(answers.learnFromSkip, d.answers.learnFromSkip),
+      thinkMs: num(answers.thinkMs, d.answers.thinkMs, AUTO_ANSWER_LIMITS.thinkMs.min, AUTO_ANSWER_LIMITS.thinkMs.max),
+      maxPerLesson: num(
+        answers.maxPerLesson,
+        d.answers.maxPerLesson,
+        AUTO_ANSWER_LIMITS.maxPerLesson.min,
+        AUTO_ANSWER_LIMITS.maxPerLesson.max,
+      ),
+      autoSubmit: bool(answers.autoSubmit, d.answers.autoSubmit),
     },
   };
 }

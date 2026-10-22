@@ -23,18 +23,15 @@ import { LogConsole } from '@Ui/Components/LogConsole';
 import { ToastStack } from '@Ui/Components/Toast';
 import {
   AlertIcon,
-  BoltIcon,
   CheckIcon,
   ClockIcon,
-  FlameIcon,
-  GemIcon,
-  HeartIcon,
   HistoryIcon,
   PlayIcon,
   RefreshIcon,
   StopIcon,
   TrashIcon,
 } from '@Ui/Icons/Icons';
+import { DuoArt } from '@Ui/Icons/DuoArt';
 import './SidePanel.css';
 
 export function SidePanel() {
@@ -130,28 +127,28 @@ export function SidePanel() {
 
         <div className="panel__stats">
           <Stat
-            icon={<BoltIcon size={15} />}
+            icon={<DuoArt name="xp" size={24} />}
             value={formatCompact(state.profile?.totalXp ?? 0)}
             label={t('popup.statXp')}
             tone="gold"
             compact
           />
           <Stat
-            icon={<GemIcon size={15} />}
+            icon={<DuoArt name="gem" size={24} />}
             value={formatCompact(state.profile?.gems ?? 0)}
             label={t('popup.statGems')}
             tone="blue"
             compact
           />
           <Stat
-            icon={<FlameIcon size={15} />}
+            icon={<DuoArt name="streak" size={24} />}
             value={state.profile?.streak ?? 0}
             label={t('popup.dayStreak')}
             tone="orange"
             compact
           />
           <Stat
-            icon={<HeartIcon size={15} />}
+            icon={<DuoArt name="heart" size={26} />}
             value={state.profile?.hearts ?? 5}
             label={t('popup.statHearts')}
             tone="red"
@@ -193,7 +190,7 @@ export function SidePanel() {
           <CardHeader
             title={t('panel.output')}
             subtitle={t('panel.buffered', { n: state.logs.length })}
-            icon={<AlertIcon size={18} />}
+            icon={<DuoArt name="console" size={22} />}
           />
           <LogConsole logs={state.logs} height={300} />
         </Card>

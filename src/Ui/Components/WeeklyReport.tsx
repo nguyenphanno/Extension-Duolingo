@@ -11,7 +11,7 @@ import type { HistoryStats } from '@Shared/Types';
 import { dayKey } from '@Shared/Utils/Time';
 import { formatNumber } from '@Shared/Utils/Format';
 import { useT } from '@Ui/I18n/I18n';
-import { ChartIcon, FlameIcon, TargetIcon, TrophyIcon } from '@Ui/Icons/Icons';
+import { DuoArt } from '@Ui/Icons/DuoArt';
 
 interface WeeklyReportProps {
   stats: HistoryStats;
@@ -94,7 +94,7 @@ export function WeeklyReport({ stats, dailyGoal }: WeeklyReportProps) {
     return (
       <div className="weekly-report">
         <div className="weekly-report__head">
-          <ChartIcon size={18} />
+          <DuoArt name="navActivity" size={20} />
           <span>{t('weekly.title')}</span>
         </div>
         <p className="hint">{t('week.noData')}</p>
@@ -107,7 +107,7 @@ export function WeeklyReport({ stats, dailyGoal }: WeeklyReportProps) {
   return (
     <div className="weekly-report">
       <div className="weekly-report__head">
-        <ChartIcon size={18} />
+        <DuoArt name="navActivity" size={20} />
         <span>{t('weekly.title')}</span>
         <span className={`weekly-trend weekly-trend--${trendTone}`}>
           {t(`week.trend${report.trend.charAt(0).toUpperCase() + report.trend.slice(1)}` as 'week.trendUp')}
@@ -117,7 +117,7 @@ export function WeeklyReport({ stats, dailyGoal }: WeeklyReportProps) {
 
       <div className="weekly-report__grid">
         <div className="weekly-stat">
-          <FlameIcon size={14} />
+          <DuoArt name="xp" size={18} />
           <div>
             <b>{formatNumber(report.thisWeek.totalXp)}</b>
             <span>{t('week.totalXp')}</span>
@@ -126,7 +126,7 @@ export function WeeklyReport({ stats, dailyGoal }: WeeklyReportProps) {
         </div>
 
         <div className="weekly-stat">
-          <ChartIcon size={14} />
+          <DuoArt name="average" size={20} />
           <div>
             <b>{formatNumber(report.avgThis)}</b>
             <span>{t('week.avgPerDay')}</span>
@@ -135,7 +135,7 @@ export function WeeklyReport({ stats, dailyGoal }: WeeklyReportProps) {
         </div>
 
         <div className="weekly-stat">
-          <TrophyIcon size={14} />
+          <DuoArt name="star" size={20} />
           <div>
             <b>{formatNumber(report.thisWeek.bestDay)}</b>
             <span>{t('week.bestDay')}</span>
@@ -143,7 +143,7 @@ export function WeeklyReport({ stats, dailyGoal }: WeeklyReportProps) {
         </div>
 
         <div className="weekly-stat">
-          <TargetIcon size={14} />
+          <DuoArt name="target" size={20} />
           <div>
             <b>{report.thisWeek.goalHits}/7</b>
             <span>{t('week.goalHit')}</span>

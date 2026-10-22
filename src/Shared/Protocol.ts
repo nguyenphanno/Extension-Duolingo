@@ -57,6 +57,10 @@ export type UiRequest =
   | { type: 'token/set'; token: string }
   | { type: 'token/test'; token: string }
   | { type: 'panel/open' }
+  | { type: 'shop/list' }
+  | { type: 'shop/buy'; itemId: string }
+  | { type: 'answers/stats' }
+  | { type: 'answers/clear' }
   | { type: 'tab/open'; url: string };
 
 export type UiResponse = Result<unknown>;

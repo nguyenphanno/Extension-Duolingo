@@ -63,6 +63,14 @@ const SHOTS = [
     caption: 'Options · Activity — streak forecast, heatmap, achievements, run history.',
   },
   {
+    name: 'options-answers',
+    page: 'Options.html?section=answers',
+    width: 1280,
+    height: 840,
+    scale: 2,
+    caption: 'Options · Auto-answer — the two answer sources, the timing, and the remembered sentences.',
+  },
+  {
     name: 'palette',
     page: 'Options.html?section=account',
     width: 1280,
@@ -72,6 +80,68 @@ const SHOTS = [
     after: async (session) => {
       // React listens on window, so a synthetic keydown is enough — no input
       // injection needed, and it works regardless of focus.
+      await session.send('Runtime.evaluate', {
+        expression: `window.dispatchEvent(new KeyboardEvent('keydown', {
+          key: 'k', code: 'KeyK', ctrlKey: true, bubbles: true, cancelable: true
+        }))`,
+      });
+      await delay(220);
+    },
+  },
+  {
+    name: 'popup-tasks',
+    page: 'Popup.html',
+    width: 384,
+    height: 600,
+    scale: 2,
+    caption: 'Popup · Tasks — run-shape presets and the per-task plan.',
+    after: async (session) => {
+      // The tab bar is a real button; a synthetic click goes through React's
+      // delegated handler exactly like a user's would.
+      await session.send('Runtime.evaluate', {
+        expression: `document.querySelectorAll('.tabbar__item')[1]?.click()`,
+      });
+      await delay(240);
+    },
+  },
+  /*
+   * The Vietnamese pass. `?locale=vi` is honoured by the mock bridge, so these
+   * are reproducible like the rest — they exist to prove the translated layout
+   * doesn't overflow, which is where a longer string usually breaks first.
+   */
+  {
+    name: 'popup-vi',
+    page: 'Popup.html?locale=vi',
+    width: 384,
+    height: 600,
+    scale: 2,
+    caption: 'Popup, Vietnamese — the same layout with longer labels.',
+  },
+  {
+    name: 'popup-dark-vi',
+    page: 'Popup.html?locale=vi',
+    width: 384,
+    height: 600,
+    scale: 2,
+    dark: true,
+    caption: 'Popup, Vietnamese, dark.',
+  },
+  {
+    name: 'options-vi',
+    page: 'Options.html?section=activity&locale=vi',
+    width: 1280,
+    height: 840,
+    scale: 2,
+    caption: 'Options · Activity, Vietnamese.',
+  },
+  {
+    name: 'palette-vi',
+    page: 'Options.html?section=account&locale=vi',
+    width: 1280,
+    height: 840,
+    scale: 2,
+    caption: 'Command palette, Vietnamese.',
+    after: async (session) => {
       await session.send('Runtime.evaluate', {
         expression: `window.dispatchEvent(new KeyboardEvent('keydown', {
           key: 'k', code: 'KeyK', ctrlKey: true, bubbles: true, cancelable: true
