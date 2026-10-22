@@ -1,0 +1,229 @@
+/* SidePanel.css — full-height live console */
+
+html,
+body {
+  height: 100%;
+  background: var(--bg);
+}
+
+.panel {
+  color: var(--text);
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  background: var(--bg);
+}
+.panel--loading {
+  display: grid;
+  place-items: center;
+  color: var(--text-faint);
+  font-weight: 800;
+}
+
+.panel__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 12px;
+  border-bottom: 2px solid var(--border);
+  background: var(--bg-raised);
+  flex: none;
+}
+.panel__brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.panel__logo {
+  width: 34px;
+  height: 34px;
+  border-radius: 11px;
+  background: var(--duo-green);
+  color: #fff;
+  display: grid;
+  place-items: center;
+  box-shadow: 0 3px 0 var(--duo-green-shadow);
+  flex: none;
+}
+.panel__brand strong {
+  display: block;
+  font-family: var(--font-display);
+  font-size: 15px;
+  font-weight: 900;
+}
+.panel__brand span {
+  font-size: 10.5px;
+  font-weight: 800;
+  color: var(--text-faint);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.panel__head-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.panel__body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.panel__run {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.panel__run-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+.panel__run-top h2 {
+  font-size: 20px;
+  margin-top: 2px;
+}
+.panel__run-time {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  font-weight: 800;
+  color: var(--text-muted);
+  background: var(--bg-subtle);
+  padding: 5px 9px;
+  border-radius: var(--r-pill);
+  flex: none;
+  font-variant-numeric: tabular-nums;
+}
+.panel__run-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.panel__dry {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+}
+.panel__dry .switch {
+  width: 40px;
+  height: 24px;
+}
+.panel__dry .switch__knob {
+  width: 18px;
+  height: 18px;
+}
+.panel__dry .switch--on .switch__knob {
+  transform: translateX(16px);
+}
+.panel__plan {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.panel__stats {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.timeline {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.timeline__row {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 9px 6px;
+  border-radius: var(--r-sm);
+  position: relative;
+}
+.timeline__row:hover {
+  background: var(--bg-subtle);
+}
+.timeline__row:not(:last-child)::after {
+  content: '';
+  position: absolute;
+  left: 17px;
+  top: 32px;
+  bottom: -2px;
+  width: 2px;
+  background: var(--border);
+}
+.timeline__dot {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: var(--bg-subtle);
+  color: var(--text-faint);
+  flex: none;
+  z-index: 1;
+}
+.timeline__row--done .timeline__dot {
+  background: color-mix(in srgb, var(--duo-green) 18%, transparent);
+  color: color-mix(in srgb, var(--duo-green) 80%, #000 20%);
+}
+.timeline__row--failed .timeline__dot {
+  background: color-mix(in srgb, var(--duo-red) 16%, transparent);
+  color: var(--duo-red);
+}
+.timeline__row--skipped .timeline__dot {
+  background: color-mix(in srgb, var(--duo-yellow) 22%, transparent);
+  color: #a37c00;
+}
+.timeline__text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.timeline__text strong {
+  font-size: 13px;
+}
+.timeline__text span {
+  font-size: 11.5px;
+  color: var(--text-muted);
+  font-weight: 700;
+}
+.timeline__text em {
+  font-style: normal;
+  font-size: 11px;
+  color: var(--text-faint);
+  font-weight: 600;
+  line-height: 1.45;
+}
+.timeline__time {
+  font-size: 10.5px;
+  font-weight: 800;
+  color: var(--text-faint);
+  font-variant-numeric: tabular-nums;
+  flex: none;
+}
+
+.panel__log-card {
+  display: flex;
+  flex-direction: column;
+}

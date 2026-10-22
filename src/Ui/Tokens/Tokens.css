@@ -1,0 +1,233 @@
+/**
+ * Tokens.css — Duolingo's visual language, expressed as CSS variables.
+ *
+ * Palette, radii, the 4px "push" border that gives every Duolingo control its
+ * chunky 3D feel, and the two type roles (feather display / din-round body).
+ */
+
+/* Duolingo ships "Feather" (display) and "DIN Round" (body). Both are
+   proprietary. If you drop the real .woff2 files into src/Assets/Fonts and
+   uncomment the @font-face blocks below, the UI picks them up instantly;
+   otherwise the bundled Nunito variable font is used, which shares the
+   rounded terminals and tight apertures. */
+@font-face {
+  font-family: 'din-round';
+  src: url('../../Assets/Fonts/NunitoLatin.woff2') format('woff2');
+  font-weight: 200 1000;
+  font-style: normal;
+  font-display: swap;
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329,
+    U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: 'din-round';
+  src: url('../../Assets/Fonts/NunitoVietnamese.woff2') format('woff2');
+  font-weight: 200 1000;
+  font-style: normal;
+  font-display: swap;
+  unicode-range: U+0102-0103, U+0110-0111, U+0128-0129, U+0168-0169, U+01A0-01A1, U+01AF-01B0, U+0300-0301,
+    U+0303-0304, U+0308-0309, U+0323, U+0329, U+1EA0-1EF9, U+20AB;
+}
+@font-face {
+  font-family: 'din-round';
+  src: url('../../Assets/Fonts/NunitoLatinExt.woff2') format('woff2');
+  font-weight: 200 1000;
+  font-style: normal;
+  font-display: swap;
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+1D00-1DBF, U+1E00-1E9F,
+    U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C4, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+
+:root {
+  /* Brand */
+  --duo-green: #58cc02;
+  --duo-green-shadow: #58a700;
+  --duo-green-light: #89e219;
+  --duo-blue: #1cb0f6;
+  --duo-blue-shadow: #1899d6;
+  --duo-blue-light: #ddf4ff;
+  --duo-red: #ff4b4b;
+  --duo-red-shadow: #ea2b2b;
+  --duo-yellow: #ffc800;
+  --duo-yellow-shadow: #e5a800;
+  --duo-orange: #ff9600;
+  --duo-orange-shadow: #e58900;
+  --duo-purple: #ce82ff;
+  --duo-purple-shadow: #a568cc;
+  --duo-pink: #ff86d0;
+
+  /* Neutrals (Duolingo names: snow/swan/polar/hare/wolf/eel/charcoal) */
+  --duo-snow: #ffffff;
+  --duo-swan: #e5e5e5;
+  --duo-polar: #f7f7f7;
+  --duo-hare: #afafaf;
+  --duo-wolf: #777777;
+  --duo-eel: #4b4b4b;
+  --duo-charcoal: #3c3c3c;
+
+  /* Surfaces (light) */
+  --bg: #ffffff;
+  --bg-subtle: #f7f7f7;
+  --bg-raised: #ffffff;
+  --border: #e5e5e5;
+  --border-strong: #d4d4d4;
+  --text: #3c3c3c;
+  --text-muted: #777777;
+  --text-faint: #afafaf;
+  --accent-soft: #ddf4ff;
+
+  /* Type */
+  --font-body: 'din-round', 'Nunito', ui-rounded, 'Segoe UI', system-ui, -apple-system, sans-serif;
+  --font-display: 'feather', 'din-round', 'Nunito', ui-rounded, system-ui, sans-serif;
+  --font-mono: ui-monospace, 'Cascadia Mono', 'SF Mono', Menlo, Consolas, monospace;
+
+  --fs-display: 30px;
+  --fs-title: 22px;
+  --fs-heading: 18px;
+  --fs-body: 15px;
+  --fs-small: 13px;
+  --fs-tiny: 11px;
+
+  /* Shape */
+  --r-sm: 10px;
+  --r-md: 14px;
+  --r-lg: 18px;
+  --r-xl: 24px;
+  --r-pill: 999px;
+
+  /* The signature Duolingo "push" depth */
+  --push: 4px;
+  --push-sm: 3px;
+
+  --shadow-card: 0 2px 0 rgba(0, 0, 0, 0.04);
+  --shadow-pop: 0 12px 32px rgba(0, 0, 0, 0.14);
+  --shadow-float: 0 8px 24px rgba(0, 0, 0, 0.1);
+
+  --ease: cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+:root[data-theme='dark'] {
+  --bg: #131f24;
+  --bg-subtle: #0f1a1f;
+  --bg-raised: #202f36;
+  --border: #37464f;
+  --border-strong: #4a5f6b;
+  --text: #f1f7fb;
+  --text-muted: #8fa6b2;
+  --text-faint: #6f8894;
+  --accent-soft: #1c3a4a;
+  --duo-swan: #37464f;
+  --duo-polar: #202f36;
+  --shadow-card: 0 2px 0 rgba(0, 0, 0, 0.35);
+  --shadow-pop: 0 16px 40px rgba(0, 0, 0, 0.55);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: var(--font-body);
+  font-size: var(--fs-body);
+  font-weight: 600;
+  color: var(--text);
+  background: var(--bg);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+h1,
+h2,
+h3,
+h4 {
+  font-family: var(--font-display);
+  font-weight: 900;
+  letter-spacing: -0.01em;
+  margin: 0;
+  line-height: 1.15;
+}
+
+p {
+  margin: 0;
+  line-height: 1.5;
+}
+
+button {
+  font-family: inherit;
+}
+
+::selection {
+  background: var(--duo-green-light);
+  color: #1a2b12;
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 999px;
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--border-strong);
+  background-clip: content-box;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+:focus-visible {
+  outline: 3px solid var(--duo-blue);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    transition-duration: 0.001ms !important;
+  }
+}
+
+.u-muted {
+  color: var(--text-muted);
+}
+.u-faint {
+  color: var(--text-faint);
+}
+.u-upper {
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-size: var(--fs-tiny);
+  font-weight: 800;
+}
+.u-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.u-spread {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.u-col {
+  display: flex;
+  flex-direction: column;
+}
+.u-scroll {
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}

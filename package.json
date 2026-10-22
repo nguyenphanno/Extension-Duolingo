@@ -1,0 +1,28 @@
+{
+  "name": "duo-assist-extension",
+  "version": "2.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Duo Assist — a TypeScript (MV3) browser extension for Duolingo account automation, with a Duolingo-native UI.",
+  "scripts": {
+    "build": "node Scripts/Build.mjs",
+    "dev": "node Scripts/Build.mjs --watch",
+    "typecheck": "tsc --noEmit",
+    "icons": "node Scripts/MakeIcons.mjs",
+    "diagrams": "node Scripts/MakeDiagrams.mjs",
+    "shots": "node Scripts/CaptureShots.mjs",
+    "docs": "node Scripts/MakeDiagrams.mjs && node Scripts/CaptureShots.mjs",
+    "clean": "node -e \"require('node:fs').rmSync('dist',{recursive:true,force:true})\""
+  },
+  "dependencies": {
+    "react": "18.3.1",
+    "react-dom": "18.3.1"
+  },
+  "devDependencies": {
+    "@types/chrome": "0.0.287",
+    "@types/react": "18.3.18",
+    "@types/react-dom": "18.3.5",
+    "esbuild": "0.24.2",
+    "typescript": "5.7.3"
+  }
+}

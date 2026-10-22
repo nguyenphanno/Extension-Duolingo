@@ -1,0 +1,56 @@
+{
+  "manifest_version": 3,
+  "name": "Duo Assist — Duolingo Automation",
+  "short_name": "Duo Assist",
+  "version": "2.0.0",
+  "description": "Automate Duolingo practice sessions, reward claims, monthly badges and streak freezes — with a UI that speaks Duolingo.",
+  "minimum_chrome_version": "114",
+  "permissions": ["storage", "alarms", "notifications", "cookies", "sidePanel", "contextMenus"],
+  "host_permissions": ["https://*.duolingo.com/*", "https://api.duolingopro.net/*"],
+  "background": {
+    "service_worker": "ServiceWorker.js"
+  },
+  "action": {
+    "default_title": "Duo Assist",
+    "default_popup": "Popup.html",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "32": "icons/icon32.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    }
+  },
+  "icons": {
+    "16": "icons/icon16.png",
+    "32": "icons/icon32.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+  "options_page": "Options.html",
+  "side_panel": {
+    "default_path": "SidePanel.html"
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://*.duolingo.com/*"],
+      "js": ["ContentScript.js"],
+      "run_at": "document_idle"
+    }
+  ],
+  "commands": {
+    "run-automation": {
+      "suggested_key": { "default": "Alt+Shift+D" },
+      "description": "Run Duo Assist now"
+    },
+    "open-side-panel": {
+      "suggested_key": { "default": "Alt+Shift+C" },
+      "description": "Open the live console"
+    }
+  },
+  "web_accessible_resources": [
+    {
+      "resources": ["assets/*", "icons/*"],
+      "matches": ["https://*.duolingo.com/*"]
+    }
+  ]
+}

@@ -1,0 +1,26 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "jsx": "react-jsx",
+    "strict": true,
+    "noImplicitOverride": true,
+    "noFallthroughCasesInSwitch": true,
+    "forceConsistentCasingInFileNames": true,
+    "skipLibCheck": true,
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "noEmit": true,
+    "types": ["chrome"],
+    "baseUrl": ".",
+    "paths": {
+      "@Shared/*": ["src/Shared/*"],
+      "@Core/*": ["src/Core/*"],
+      "@Ui/*": ["src/Ui/*"],
+      "@Background/*": ["src/Background/*"]
+    }
+  },
+  "include": ["src"]
+}
