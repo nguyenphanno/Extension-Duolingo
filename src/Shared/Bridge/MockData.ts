@@ -254,6 +254,7 @@ export function mockState(): UiState {
     schedule: {
       nextRunAt: now + 1000 * 60 * 90,
       guardAt: now + 1000 * 60 * 60 * 6,
+      watchAt: now + 1000 * 60 * 60 * 8,
     },
     pacing: { factor: 1, holdUntil: null, rateLimitHits: 0 },
   };

@@ -14,6 +14,7 @@ import { formatCompact, formatNumber } from '@Shared/Utils/Format';
 import { dayKey, formatDuration, formatRelative } from '@Shared/Utils/Time';
 import { achievementSummary, computeAchievements } from '@Shared/Utils/Achievements';
 import { forecastFromProfile } from '@Shared/Utils/Forecast';
+import { isPausedOn } from '@Shared/Utils/Pause';
 import type { Locale, RunSummary, TaskKey, ThemePreference } from '@Shared/Types';
 import { bridge } from '@Shared/Bridge/ExtensionBridge';
 import { useAppState } from '@Ui/Hooks/UseAppState';
@@ -827,6 +828,24 @@ export function Options() {
               <p className="hint">{t('opt.practice.goalCounting', { today: todayXp })}</p>
             </Card>
 
+            <Card tone={s.practice.autoSize ? 'purple' : 'default'}>
+              <CardHeader
+                title={t('opt.practice.autoSize')}
+                subtitle={t('opt.practice.autoSizeHint')}
+                icon={<SparkleIcon size={18} />}
+                action={
+                  <Toggle
+                    label=""
+                    checked={s.practice.autoSize}
+                    onChange={(next) => void patch((draft) => void (draft.practice.autoSize = next))}
+                  />
+                }
+              />
+              <p className="hint">
+                {s.practice.autoSize ? t('opt.practice.autoSizeOn') : t('opt.practice.autoSizeOff')}
+              </p>
+            </Card>
+
             <Card tone="blue">
               <div className="callout">
                 <ClockIcon size={18} />
@@ -935,6 +954,12 @@ export function Options() {
                 min={0}
                 max={2}
                 onChange={(next) => void patch((draft) => void (draft.freeze.targetCount = next))}
+              />
+              <Toggle
+                label={t('opt.rewards.insure')}
+                hint={t('opt.rewards.insureHint')}
+                checked={s.freeze.autoInsure}
+                onChange={(next) => void patch((draft) => void (draft.freeze.autoInsure = next))}
               />
             </Card>
           </div>
@@ -1105,6 +1130,84 @@ export function Options() {
                     : t('opt.schedule.guardOff')}
                 </span>
               </div>
+            </Card>
+
+            <Card tone={s.schedule.watch.enabled ? 'blue' : 'default'}>
+              <CardHeader
+                title={t('opt.schedule.watch')}
+                subtitle={t('opt.schedule.watchSub')}
+                icon={<AlertIcon size={18} />}
+                action={
+                  <Toggle
+                    label=""
+                    checked={s.schedule.watch.enabled}
+                    onChange={(next) => void patch((draft) => void (draft.schedule.watch.enabled = next))}
+                  />
+                }
+              />
+              <div className="field-grid">
+                <Stepper
+                  label={t('opt.schedule.guardHour')}
+                  suffix="h"
+                  value={s.schedule.watch.hour}
+                  min={0}
+                  max={23}
+                  onChange={(next) => void patch((draft) => void (draft.schedule.watch.hour = next))}
+                />
+                <Stepper
+                  label={t('opt.schedule.guardMinute')}
+                  suffix="min"
+                  value={s.schedule.watch.minute}
+                  min={0}
+                  max={30}
+                  step={30}
+                  onChange={(next) => void patch((draft) => void (draft.schedule.watch.minute = next))}
+                />
+              </div>
+              <p className="hint">{t('opt.schedule.watchHint')}</p>
+              <div className="next-run">
+                <ClockIcon size={16} />
+                <span>
+                  {s.schedule.watch.enabled
+                    ? state.schedule.watchAt
+                      ? t('opt.schedule.watchAt', { when: formatRelative(state.schedule.watchAt) })
+                      : t('opt.schedule.watchTime')
+                    : t('opt.schedule.watchOff')}
+                </span>
+              </div>
+            </Card>
+
+            <Card tone={isPausedOn(s.schedule.pause, dayKey(Date.now())) ? 'gold' : 'default'}>
+              <CardHeader
+                title={t('opt.schedule.pause')}
+                subtitle={t('opt.schedule.pauseSub')}
+                icon={<CalendarIcon size={18} />}
+                action={
+                  <Toggle
+                    label=""
+                    checked={s.schedule.pause.enabled}
+                    onChange={(next) => void patch((draft) => void (draft.schedule.pause.enabled = next))}
+                  />
+                }
+              />
+              <div className="field-grid">
+                <Field
+                  label={t('opt.schedule.pauseFrom')}
+                  type="date"
+                  value={s.schedule.pause.from}
+                  onChange={(next) => void patch((draft) => void (draft.schedule.pause.from = next))}
+                />
+                <Field
+                  label={t('opt.schedule.pauseTo')}
+                  type="date"
+                  value={s.schedule.pause.to}
+                  onChange={(next) => void patch((draft) => void (draft.schedule.pause.to = next))}
+                />
+              </div>
+              <p className="hint">{t('opt.schedule.pauseHint')}</p>
+              {isPausedOn(s.schedule.pause, dayKey(Date.now())) ? (
+                <p className="hint">{t('opt.schedule.pauseActive', { to: s.schedule.pause.to || '—' })}</p>
+              ) : null}
             </Card>
 
             <Card>

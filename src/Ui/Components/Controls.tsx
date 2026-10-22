@@ -133,7 +133,7 @@ export function Field({
   hint?: string;
   value: string;
   placeholder?: string;
-  type?: 'text' | 'password' | 'number';
+  type?: 'text' | 'password' | 'number' | 'date';
   mono?: boolean;
   action?: ReactNode;
   onChange: (next: string) => void;

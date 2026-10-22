@@ -23,6 +23,7 @@ interface PlanPreviewProps {
 
 const BLOCK_KEY: Record<Exclude<ScheduleBlock, null>, MessageKey> = {
   disabled: 'plan.blockDisabled',
+  paused: 'plan.blockPaused',
   'quiet-hours': 'plan.blockQuiet',
   'off-day': 'plan.blockOffDay',
 };

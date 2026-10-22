@@ -8,17 +8,20 @@
 import {
   ALARM_GUARD,
   ALARM_SCHEDULE,
+  ALARM_WATCH,
+  ALARM_WATCH_SNOOZE,
   COMMAND_PANEL,
   COMMAND_RUN,
   MENU_OPEN_PANEL,
   MENU_RUN_NOW,
   PORT_NAME,
+  WATCH,
 } from '@Shared/Constants';
 import { logger } from '@Shared/Logger';
 import type { StreamEvent, UiRequest } from '@Shared/Protocol';
 import { app } from './AppContext';
 import { route } from './MessageRouter';
-import { notificationService } from './NotificationService';
+import { notificationService, WATCH_NOTIFICATION_ID } from './NotificationService';
 import { RunCoordinator } from './RunCoordinator';
 import { Scheduler } from './Scheduler';
 
@@ -146,6 +149,7 @@ chrome.alarms.onAlarm.addListener((alarm) => {
   }
 
   if (alarm.name === ALARM_GUARD) void runGuard();
+  if (alarm.name === ALARM_WATCH || alarm.name === ALARM_WATCH_SNOOZE) void runWatch();
 });
 
 /**
@@ -171,6 +175,55 @@ async function runGuard(): Promise<void> {
   app.log.warn(`Streak guard firing — ${streak}-day streak with no XP today.`);
   await runNow('guard');
 }
+
+/**
+ * Last call: the same conditions as the guard, but it stops at a notification.
+ *
+ * This is the deliberate opposite of `runGuard` — it exists so a user who does
+ * not want the extension acting on its own still gets a chance to act, and the
+ * decision (and the mutation) stays theirs.
+ */
+async function runWatch(): Promise<void> {
+  const settings = await app.settings.load();
+  const stats = await app.history.stats();
+  const todayXp = stats.daily[stats.daily.length - 1]?.xp ?? 0;
+  const streak = app.profile?.streak ?? 0;
+
+  const block = scheduler.watchBlock(settings, todayXp, streak);
+  if (block) {
+    app.log.info(scheduler.describeWatch(block) ?? 'Last call skipped.');
+    return;
+  }
+
+  app.log.warn(`Last call — ${streak}-day streak with no XP today.`);
+  await notificationService.streakAtRisk(streak, settings);
+}
+
+/* ------------------------------------------------------------------ *
+ * Last-call answers: the only place a notification can cause a run
+ * ------------------------------------------------------------------ */
+
+chrome.notifications?.onButtonClicked?.addListener((notificationId, buttonIndex) => {
+  if (notificationId !== WATCH_NOTIFICATION_ID) return;
+  void (async () => {
+    await chrome.notifications.clear(WATCH_NOTIFICATION_ID);
+    if (buttonIndex === 0) {
+      app.log.info('Last call answered — running now.');
+      await runNow('manual');
+      return;
+    }
+    await chrome.alarms.create(ALARM_WATCH_SNOOZE, { delayInMinutes: WATCH.snoozeMinutes });
+    app.log.info(`Last call snoozed for ${WATCH.snoozeMinutes} minutes.`);
+  })();
+});
+
+chrome.notifications?.onClicked?.addListener((notificationId) => {
+  if (notificationId !== WATCH_NOTIFICATION_ID) return;
+  void (async () => {
+    await chrome.notifications.clear(WATCH_NOTIFICATION_ID);
+    await openPanel();
+  })();
+});
 
 /* ------------------------------------------------------------------ *
  * Commands + context menu

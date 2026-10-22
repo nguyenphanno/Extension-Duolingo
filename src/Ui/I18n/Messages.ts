@@ -329,6 +329,11 @@ export const EN = {
   'opt.practice.goalOn': 'On — the run stops at {goal} XP today.',
   'opt.practice.goalOff': 'Off — the run continues for all {n} sessions.',
   'opt.practice.goalCounting': 'Counts XP recorded by this extension today ({today} so far).',
+  'opt.practice.autoSize': 'Size each run to the goal',
+  'opt.practice.autoSizeHint':
+    'Reads your average XP per lesson and runs only what the remaining goal needs. The session count above becomes a ceiling.',
+  'opt.practice.autoSizeOn': 'On — the plan is recalculated before every run, from your own history.',
+  'opt.practice.autoSizeOff': 'Off — every run uses the session count above.',
 
   /* ----------------------------- Options: rewards ----------------------- */
   'opt.rewards.title': 'Reward sweep',
@@ -348,6 +353,9 @@ export const EN = {
   'opt.rewards.freezeToggle': 'Auto top-up',
   'opt.rewards.freezeHint': 'Stops at the target count',
   'opt.rewards.target': 'Target inventory',
+  'opt.rewards.insure': 'Insurance instead of top-up',
+  'opt.rewards.insureHint':
+    'Buy only the cover the forecast says is missing — a day that already has XP needs one freeze fewer',
 
   /* ---------------------------- Options: activity ----------------------- */
   'opt.activity.forecast': 'Streak forecast',
@@ -386,6 +394,19 @@ export const EN = {
   'opt.schedule.guardAt': 'Next check {when}',
   'opt.schedule.guardHint': 'Runs one lesson, only when there is a streak and no XP today. Quiet hours do not apply — you picked this time.',
   'opt.schedule.guardOff': 'Off — a missed day can end the streak.',
+  'opt.schedule.watch': 'Last call',
+  'opt.schedule.watchSub': 'Asks before anything runs',
+  'opt.schedule.watchHint':
+    'Fires only when today still has no XP and the streak is active. The notification offers “Run now” or “Snooze 1h” — nothing is sent until you choose.',
+  'opt.schedule.watchAt': 'Next last call {when}',
+  'opt.schedule.watchTime': 'Waiting for the next alarm',
+  'opt.schedule.watchOff': 'Off — no reminder will be sent.',
+  'opt.schedule.pause': 'Vacation window',
+  'opt.schedule.pauseSub': 'Nothing runs between these days',
+  'opt.schedule.pauseFrom': 'From',
+  'opt.schedule.pauseTo': 'To',
+  'opt.schedule.pauseHint': 'Inclusive local dates. Leave one side empty for an open-ended pause.',
+  'opt.schedule.pauseActive': 'Paused until {to}.',
 
   /* ----------------------------- Options: safety ------------------------ */
   'opt.safety.readTitle': 'Read this once',
@@ -541,6 +562,7 @@ export const EN = {
   'plan.blocked': 'Blocked',
   'plan.noBlock': 'Nothing is blocking — the run would start immediately.',
   'plan.blockDisabled': 'Scheduled runs are off.',
+  'plan.blockPaused': 'The vacation window is active.',
   'plan.blockQuiet': 'Quiet hours are active.',
   'plan.blockOffDay': 'Today is not an active weekday.',
   'plan.nextAlarm': 'Next alarm',
@@ -883,6 +905,11 @@ export const VI: Record<MessageKey, string> = {
   'opt.practice.goalOn': 'Bật — lượt chạy dừng khi hôm nay đạt {goal} XP.',
   'opt.practice.goalOff': 'Tắt — lượt chạy đi hết {n} phiên.',
   'opt.practice.goalCounting': 'Chỉ tính XP do tiện ích này ghi nhận hôm nay ({today} đến giờ).',
+  'opt.practice.autoSize': 'Chia lượt chạy theo mục tiêu',
+  'opt.practice.autoSizeHint':
+    'Đọc XP trung bình mỗi bài của bạn và chỉ chạy đủ phần còn thiếu để đạt mục tiêu. Số phiên ở trên trở thành mức trần.',
+  'opt.practice.autoSizeOn': 'Bật — kế hoạch được tính lại trước mỗi lượt, từ lịch sử của bạn.',
+  'opt.practice.autoSizeOff': 'Tắt — mỗi lượt chạy đúng số phiên ở trên.',
 
   /* ----------------------------- Options: rewards ----------------------- */
   'opt.rewards.title': 'Quét phần thưởng',
@@ -902,6 +929,9 @@ export const VI: Record<MessageKey, string> = {
   'opt.rewards.freezeToggle': 'Tự bổ sung',
   'opt.rewards.freezeHint': 'Dừng khi đạt số lượng mục tiêu',
   'opt.rewards.target': 'Kho mục tiêu',
+  'opt.rewards.insure': 'Bảo hiểm thay vì bổ sung đều',
+  'opt.rewards.insureHint':
+    'Chỉ mua phần bảo hiểm mà dự báo còn thiếu — ngày đã có XP thì cần ít hơn một lượt',
 
   /* ---------------------------- Options: activity ----------------------- */
   'opt.activity.forecast': 'Dự báo chuỗi',
@@ -940,6 +970,19 @@ export const VI: Record<MessageKey, string> = {
   'opt.schedule.guardAt': 'Lần kiểm tra tới {when}',
   'opt.schedule.guardHint': 'Chạy đúng một bài, chỉ khi có chuỗi và hôm nay chưa có XP. Giờ yên tĩnh không áp dụng — bạn tự chọn giờ này.',
   'opt.schedule.guardOff': 'Tắt — một ngày vắng là có thể mất chuỗi.',
+  'opt.schedule.watch': 'Nhắc cuối ngày',
+  'opt.schedule.watchSub': 'Hỏi trước khi chạy bất cứ thứ gì',
+  'opt.schedule.watchHint':
+    'Chỉ bắn khi hôm nay vẫn chưa có XP và chuỗi đang hoạt động. Thông báo có hai lựa chọn “Chạy ngay” hoặc “Hoãn 1 giờ” — không gửi gì cho đến khi bạn chọn.',
+  'opt.schedule.watchAt': 'Lần nhắc tới {when}',
+  'opt.schedule.watchTime': 'Đang chờ lần nhắc kế tiếp',
+  'opt.schedule.watchOff': 'Tắt — sẽ không nhắc gì.',
+  'opt.schedule.pause': 'Khoảng tạm dừng',
+  'opt.schedule.pauseSub': 'Không chạy gì trong khoảng này',
+  'opt.schedule.pauseFrom': 'Từ ngày',
+  'opt.schedule.pauseTo': 'Đến ngày',
+  'opt.schedule.pauseHint': 'Tính cả hai đầu, theo ngày địa phương. Để trống một đầu nếu muốn mở.',
+  'opt.schedule.pauseActive': 'Đang tạm dừng đến {to}.',
 
   /* ----------------------------- Options: safety ------------------------ */
   'opt.safety.readTitle': 'Đọc một lần',
@@ -1095,6 +1138,7 @@ export const VI: Record<MessageKey, string> = {
   'plan.blocked': 'Bị chặn',
   'plan.noBlock': 'Không có gì chặn — lượt sẽ chạy ngay.',
   'plan.blockDisabled': 'Lịch chạy đang tắt.',
+  'plan.blockPaused': 'Đang trong khoảng tạm dừng.',
   'plan.blockQuiet': 'Đang trong giờ nghỉ.',
   'plan.blockOffDay': 'Hôm nay không phải ngày hoạt động.',
   'plan.nextAlarm': 'Báo thức kế tiếp',

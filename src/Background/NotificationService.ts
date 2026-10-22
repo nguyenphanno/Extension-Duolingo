@@ -8,7 +8,33 @@ import { formatDuration } from '@Shared/Utils/Time';
 
 const ICON = 'icons/icon128.png';
 
+/** One id per concept, so a nudge can be replaced or cleared by the handler. */
+export const WATCH_NOTIFICATION_ID = 'duo.watch';
+
 export class NotificationService {
+  /**
+   * Last call. Unlike the streak guard this never runs anything: it asks, with
+   * the two answers the user actually has — run now, or wait an hour.
+   */
+  async streakAtRisk(streak: number, settings: Settings): Promise<void> {
+    if (!settings.behavior.notifications) return;
+    if (typeof chrome === 'undefined' || !chrome.notifications) return;
+
+    try {
+      await chrome.notifications.create(WATCH_NOTIFICATION_ID, {
+        type: 'basic',
+        iconUrl: ICON,
+        title: `Duo Assist — ${streak}-day streak at risk`,
+        message: 'No XP recorded today. Run a lesson now, or snooze for an hour.',
+        priority: 2,
+        requireInteraction: true,
+        buttons: [{ title: 'Run now' }, { title: 'Snooze 1h' }],
+      });
+    } catch {
+      /* notifications can be blocked by the OS */
+    }
+  }
+
   async runFinished(summary: RunSummary, settings: Settings): Promise<void> {
     if (!settings.behavior.notifications) return;
     if (typeof chrome === 'undefined' || !chrome.notifications) return;

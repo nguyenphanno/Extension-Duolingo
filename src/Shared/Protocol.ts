@@ -38,7 +38,7 @@ export interface UiState {
   token: TokenInfo;
   lastSummary: RunSummary | null;
   version: string;
-  schedule: { nextRunAt: number | null; guardAt: number | null };
+  schedule: { nextRunAt: number | null; guardAt: number | null; watchAt: number | null };
   pacing: PacingState;
 }
 

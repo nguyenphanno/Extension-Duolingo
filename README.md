@@ -39,7 +39,7 @@ Six tasks run in a fixed, weighted order. Each one is a single file in `src/Core
 | **Practice** | Opens and closes `N` sessions against `/sessions`, with a randomised duration and a randomised gap between them. | `0–30` sessions · `20–300 s` each · `0–30 s` gaps · **XP budget** stops the run the moment a ceiling is reached · **Goal mode** stops as soon as today's XP hits the daily target |
 | **Rewards** | Sweeps `rewardBundles` (quests, chests, tournaments, monthly challenge) and claims each one. | `maxClaims` cap (default 35) · per-claim reporting |
 | **Badges** | Reads monthly-challenge progress and reports which months are still missing. | Months that have not finished yet are ignored |
-| **Freeze** | Tops up streak freezes to a target count. | Target `0–2` · HTTP `400` is read as "inventory already full", not an error |
+| **Freeze** | Tops up streak freezes to a target count, or — with **insurance** on — buys only the cover the forecast says is missing. | Target `0–2` · HTTP `400` is read as "inventory already full", not an error · at most 2 purchases per run |
 | **Boost** | Buys Double XP with gems. | Locked behind the PRO gate |
 | **Super** | Extends a Super subscription. | Locked behind the PRO gate |
 
@@ -49,6 +49,7 @@ Six tasks run in a fixed, weighted order. Each one is a single file in `src/Core
 | --- | --- |
 | **Presets** | `Quick` · `Balanced` · `Max XP` · `Rewards only` — each one rewrites only the fields that define a run's shape, so your schedule and theme survive |
 | **Partial runs** | Run a single task on demand, or retry *only the tasks that failed* — from the popup, the palette, or a history row |
+| **Auto-size** | Turns the session count into a ceiling: each run is sized from `(goal − today's XP) / your average XP per lesson`, so a run neither overshoots the goal nor stops short of it |
 | **Dry run** | Walks the whole plan, logs every step, and mutates nothing |
 | **Cooldown** | 45 s default, blocks accidental double-clicks. Scheduled runs and targeted retries are exempt |
 | **Cancel** | One `AbortSignal` threaded through the engine, the task loop and every `fetch` |
@@ -56,6 +57,8 @@ Six tasks run in a fixed, weighted order. Each one is a single file in `src/Core
 | **Bilingual UI** | English and Vietnamese — every label, toast and log line is translated; locale switch is instant and does not reload |
 | **Scheduler** | `chrome.alarms` with a 15–1440 minute interval, a weekday picker, quiet hours, run-on-startup, and an optional **streak guard** watchdog |
 | **Streak guard** | A daily alarm — if today's XP is still 0 and your streak is active, it fires a minimal `Quick` plan automatically |
+| **Last call** | A second daily alarm that *asks* instead of acting: a notification with **Run now** / **Snooze 1h** buttons. Nothing is sent until you answer |
+| **Vacation window** | An inclusive date range in which nothing runs — not the interval, not the guard, not the nudge |
 | **Triggers** | Button · alarm · context menu · keyboard command · the pill injected on duolingo.com |
 
 ### Observability
@@ -206,10 +209,10 @@ Everything lives in `chrome.storage.local` under three keys: `settings`, `histor
 | Section | Controls |
 | --- | --- |
 | **Account** | Token source, manual JWT, profile refresh |
-| **Practice** | Sessions, session length, gaps, stop-on-error, **XP budget**, **Goal mode** |
+| **Practice** | Sessions, session length, gaps, stop-on-error, **XP budget**, **Goal mode**, **Auto-size** |
 | **Activity** | Streak forecast, heatmap, achievements, run history |
 | **Rewards & badges** | Rewards sweep, claim cap, badge check, PRO bridge routing |
-| **Schedule** | Interval, weekday picker, quiet hours, run on startup, **streak guard time** |
+| **Schedule** | Interval, weekday picker, quiet hours, run on startup, **streak guard time**, **last call**, **vacation window** |
 | **Safety & PRO** | Dry run, cooldown, notification toggles, the two-step PRO gate |
 | **Appearance** | Theme (light/dark/system), locale (en/vi) |
 | **Data** | Export history, copy settings, import, clear history, reset |
@@ -250,7 +253,7 @@ Automation is inherently risky, so the risky parts are opt-in and visible rather
 | `npm run diagrams` | Regenerate `docs/diagrams/*.svg` |
 | `npm run shots` | Recapture `docs/screenshots/*.png` (build first) |
 | `npm run docs` | Both of the above |
-| `npm run test` | Run the `node:test` suite via `tsx` (39 tests across Forecast, Settings, TaskRegistry, Achievements, Time) |
+| `npm run test` | Run the `node:test` suite via `tsx` (124 tests across Forecast, Settings, TaskRegistry, Achievements, Time, HttpClient, DuolingoApi, PlanSize, Insurance, FreezeTask, Pause) |
 | `npm run copyright` | Stamp/verify the copyright header on every source file |
 | `npm run clean` | Remove `dist/` |
 
@@ -278,9 +281,15 @@ The `src/Core/` and `src/Shared/Utils/` layers are pure functions with zero `chr
 | `TaskRegistry.test.ts` | `planFor` — enabled filtering, narrowed plans, `isEnabled` bypass on `only` |
 | `Achievements.test.ts` | Achievement computation and summary stats |
 | `Time.test.ts` | `dayKey`, `formatDuration`, `isWithinQuietHours`, wrap-past-midnight logic |
+| `HttpClient.test.ts` | `fetch` stubbed at the global: retry policy, 4xx/5xx/401 mapping, `Retry-After` in both formats, adaptive throttle and its cap, timeout, cancellation, mutation spacing |
+| `DuolingoApi.test.ts` | Payload normalisation (full, empty, legacy shapes) and the reward sweep: claim cap, consumed rewards, one failure not aborting the rest, badge month accounting |
+| `PlanSize.test.ts` | Goal sizing: session-count cap, XP already earned, empty/thin/noisy history, fallback average |
+| `Insurance.test.ts` | Freeze policy: today's XP counts as cover, target ceiling, no streak, zero target |
+| `FreezeTask.test.ts` | Top-up vs. insurance wiring: how many purchases, dry run, 400 as "already full", first-failure propagation |
+| `Pause.test.ts` | Vacation window: inclusive bounds, open-ended sides, single day, year boundary |
 
 ```bash
-npm test              # → 39 tests, ~2s
+npm test              # → 124 tests, ~6s
 ```
 
 <div align="center">

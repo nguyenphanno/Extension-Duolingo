@@ -6,7 +6,7 @@
  * defaults and every numeric field is clamped to its documented range. That
  * means a corrupted or hand-edited blob can never crash the automation.
  */
-import { DEFAULT_TIMEZONE, GUARD, LIMITS, SCHEMA_VERSION, STORAGE_KEYS } from '@Shared/Constants';
+import { DEFAULT_TIMEZONE, GUARD, LIMITS, SCHEMA_VERSION, STORAGE_KEYS, WATCH } from '@Shared/Constants';
 import type { Settings } from '@Shared/Types';
 import { clamp } from '@Shared/Utils/Format';
 import { readRaw, writeRaw } from './StorageArea';
@@ -27,6 +27,7 @@ export const DEFAULT_SETTINGS: Settings = {
     dailyXpGoal: 50,
     xpBudget: 0,
     stopAtDailyGoal: false,
+    autoSize: false,
   },
   rewards: { enabled: true, maxClaims: 35 },
   badges: {
@@ -36,7 +37,7 @@ export const DEFAULT_SETTINGS: Settings = {
     years: [new Date().getFullYear()],
     maxRequestsPerRun: 1,
   },
-  freeze: { enabled: true, targetCount: 2 },
+  freeze: { enabled: true, targetCount: 2, autoInsure: false },
   super: { enabled: false },
   boost: { enabled: false },
   pro: { enabled: false, acknowledgeRisk: false },
@@ -47,6 +48,8 @@ export const DEFAULT_SETTINGS: Settings = {
     runOnStartup: false,
     days: [0, 1, 2, 3, 4, 5, 6],
     guard: { enabled: false, hour: GUARD.hour, minute: GUARD.minute },
+    watch: { enabled: false, hour: WATCH.hour, minute: WATCH.minute },
+    pause: { enabled: false, from: '', to: '' },
   },
   behavior: {
     dryRun: false,
@@ -86,8 +89,40 @@ const MIGRATIONS: Array<{ toVersion: number; patch: (raw: Json) => void }> = [
       }
     },
   },
+  {
+    toVersion: 3,
+    patch(raw) {
+      // v2 → v3: goal-sized plans. Off by default, so an upgrade never changes
+      // the shape of a run behind the user's back.
+      const practice = isObject(raw.practice) ? (raw.practice as Json) : {};
+      if (practice.autoSize === undefined) {
+        practice.autoSize = false;
+        raw.practice = practice;
+      }
+    },
+  },
+  {
+    toVersion: 4,
+    patch(raw) {
+      // v3 → v4: streak insurance, last-call nudge, vacation window. All off by
+      // default — an upgrade must never start buying things or pausing runs.
+      const freeze = isObject(raw.freeze) ? (raw.freeze as Json) : {};
+      if (freeze.autoInsure === undefined) {
+        freeze.autoInsure = false;
+        raw.freeze = freeze;
+      }
+      const schedule = isObject(raw.schedule) ? (raw.schedule as Json) : {};
+      if (!isObject(schedule.watch)) {
+        schedule.watch = { enabled: false, hour: WATCH.hour, minute: WATCH.minute };
+      }
+      if (!isObject(schedule.pause)) {
+        schedule.pause = { enabled: false, from: '', to: '' };
+      }
+      raw.schedule = schedule;
+    },
+  },
   // Add future migrations here:
-  // { toVersion: 3, patch(raw) { … } },
+  // { toVersion: 5, patch(raw) { … } },
 ];
 
 /** Apply all migrations up to the current `SCHEMA_VERSION`. */
@@ -126,6 +161,13 @@ function pickEnum<T extends string>(value: unknown, allowed: readonly T[], fallb
   return allowed.includes(value as T) ? (value as T) : fallback;
 }
 
+/** A local calendar day, `YYYY-MM-DD`. Anything else becomes "unset". */
+const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
+
+function dateStr(value: unknown, fallback: string): string {
+  return typeof value === 'string' && ISO_DATE.test(value) ? value : fallback;
+}
+
 /** Deep-merge an untrusted blob onto defaults, clamping as we go. */
 export function normaliseSettings(input: unknown): Settings {
   const raw = isObject(input) ? input : {};
@@ -137,6 +179,8 @@ export function normaliseSettings(input: unknown): Settings {
   const schedule = isObject(raw.schedule) ? raw.schedule : {};
   const quiet = isObject(schedule.quietHours) ? schedule.quietHours : {};
   const guard = isObject(schedule.guard) ? schedule.guard : {};
+  const watch = isObject(schedule.watch) ? schedule.watch : {};
+  const pause = isObject(schedule.pause) ? schedule.pause : {};
   const behavior = isObject(raw.behavior) ? raw.behavior : {};
   const ui = isObject(raw.ui) ? raw.ui : {};
   const pro = isObject(raw.pro) ? raw.pro : {};
@@ -167,6 +211,7 @@ export function normaliseSettings(input: unknown): Settings {
       dailyXpGoal: num(practice.dailyXpGoal, d.practice.dailyXpGoal, 10, 500),
       xpBudget: num(practice.xpBudget, d.practice.xpBudget, 0, 2000),
       stopAtDailyGoal: bool(practice.stopAtDailyGoal, d.practice.stopAtDailyGoal),
+      autoSize: bool(practice.autoSize, d.practice.autoSize),
     },
     rewards: {
       enabled: bool(rewards.enabled, d.rewards.enabled),
@@ -182,6 +227,7 @@ export function normaliseSettings(input: unknown): Settings {
     freeze: {
       enabled: bool(freeze.enabled, d.freeze.enabled),
       targetCount: num(freeze.targetCount, d.freeze.targetCount, LIMITS.targetFreeze.min, LIMITS.targetFreeze.max),
+      autoInsure: bool(freeze.autoInsure, d.freeze.autoInsure),
     },
     super: { enabled: bool(isObject(raw.super) ? raw.super.enabled : undefined, d.super.enabled) },
     boost: { enabled: bool(isObject(raw.boost) ? raw.boost.enabled : undefined, d.boost.enabled) },
@@ -206,6 +252,16 @@ export function normaliseSettings(input: unknown): Settings {
         hour: num(guard.hour, d.schedule.guard.hour, 0, 23),
         // Snap to the half hour so the alarm never lands mid-minute.
         minute: num(guard.minute, d.schedule.guard.minute, 0, 59) < 30 ? 0 : 30,
+      },
+      watch: {
+        enabled: bool(watch.enabled, d.schedule.watch.enabled),
+        hour: num(watch.hour, d.schedule.watch.hour, 0, 23),
+        minute: num(watch.minute, d.schedule.watch.minute, 0, 59) < 30 ? 0 : 30,
+      },
+      pause: {
+        enabled: bool(pause.enabled, d.schedule.pause.enabled),
+        from: dateStr(pause.from, d.schedule.pause.from),
+        to: dateStr(pause.to, d.schedule.pause.to),
       },
     },
     behavior: {

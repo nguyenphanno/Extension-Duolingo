@@ -9,7 +9,7 @@ import { tokenProvider } from '@Core/Auth/TokenProvider';
 import { historyRepository, type HistoryRepository } from '@Core/Storage/HistoryRepository';
 import { settingsRepository, type SettingsRepository } from '@Core/Storage/SettingsRepository';
 import { readRaw, writeRaw } from '@Core/Storage/StorageArea';
-import { ALARM_GUARD, ALARM_SCHEDULE, STORAGE_KEYS } from '@Shared/Constants';
+import { ALARM_GUARD, ALARM_SCHEDULE, ALARM_WATCH, STORAGE_KEYS } from '@Shared/Constants';
 import { logger } from '@Shared/Logger';
 import type { StreamEvent, UiState } from '@Shared/Protocol';
 import type { PacingState, Profile, RunState, RunSummary } from '@Shared/Types';
@@ -83,11 +83,12 @@ export class AppContext {
 
   async buildState(): Promise<UiState> {
     const settings = await this.settings.load();
-    const [stats, token, alarm, guard] = await Promise.all([
+    const [stats, token, alarm, guard, watch] = await Promise.all([
       this.history.stats(),
       tokenProvider.info({ source: settings.tokenSource, manualToken: settings.manualToken }),
       chrome.alarms?.get?.(ALARM_SCHEDULE) ?? Promise.resolve(undefined),
       chrome.alarms?.get?.(ALARM_GUARD) ?? Promise.resolve(undefined),
+      chrome.alarms?.get?.(ALARM_WATCH) ?? Promise.resolve(undefined),
     ]);
 
     return {
@@ -99,7 +100,11 @@ export class AppContext {
       token,
       lastSummary: this.lastSummary,
       version: this.version,
-      schedule: { nextRunAt: alarm?.scheduledTime ?? null, guardAt: guard?.scheduledTime ?? null },
+      schedule: {
+        nextRunAt: alarm?.scheduledTime ?? null,
+        guardAt: guard?.scheduledTime ?? null,
+        watchAt: watch?.scheduledTime ?? null,
+      },
       pacing: this.pacing,
     };
   }

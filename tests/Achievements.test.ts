@@ -40,7 +40,7 @@ const BASE_SETTINGS: Settings = {
   schemaVersion: 2,
   tokenSource: 'cookie',
   manualToken: '',
-  practice: { enabled: true, sessions: 5, minDurationSec: 35, maxDurationSec: 60, delayMinMs: 2000, delayMaxMs: 3500, stopOnError: false, heartsLeft: 5, dailyXpGoal: 50, xpBudget: 0, stopAtDailyGoal: false },
+  practice: { enabled: true, sessions: 5, minDurationSec: 35, maxDurationSec: 60, delayMinMs: 2000, delayMaxMs: 3500, stopOnError: false, heartsLeft: 5, dailyXpGoal: 50, xpBudget: 0, stopAtDailyGoal: false, autoSize: false },
   rewards: { enabled: true, maxClaims: 35 },
   badges: { enabled: true, request: false, timezone: 'UTC', years: [2026], maxRequestsPerRun: 1 },
   freeze: { enabled: true, targetCount: 2 },

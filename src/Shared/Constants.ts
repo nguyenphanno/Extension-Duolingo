@@ -78,7 +78,7 @@ export const STORAGE_KEYS = {
   logs: 'duo.logs',
 } as const;
 
-export const SCHEMA_VERSION = 2;
+export const SCHEMA_VERSION = 4;
 export const HISTORY_LIMIT = 200;
 export const LOG_BUFFER_LIMIT = 400;
 
@@ -87,6 +87,8 @@ export const LOG_BUFFER_LIMIT = 400;
 export const PORT_NAME = 'duo.stream';
 export const ALARM_SCHEDULE = 'duo.schedule';
 export const ALARM_GUARD = 'duo.guard';
+export const ALARM_WATCH = 'duo.watch';
+export const ALARM_WATCH_SNOOZE = 'duo.watch.snooze';
 export const ALARM_KEEPALIVE = 'duo.keepalive';
 export const MENU_RUN_NOW = 'duo.menu.run';
 export const MENU_OPEN_PANEL = 'duo.menu.panel';
@@ -134,4 +136,14 @@ export const GUARD = {
   minute: 30,
   /** Only one lesson — the guard is a rescue, not a run. */
   sessions: 1,
+} as const;
+
+/**
+ * Last call. Later than the guard on purpose: the guard *acts*, this one only
+ * asks, so it has to arrive while there is still time to answer.
+ */
+export const WATCH = {
+  hour: 22,
+  minute: 0,
+  snoozeMinutes: 60,
 } as const;

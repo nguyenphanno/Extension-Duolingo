@@ -12,6 +12,7 @@ import { GUARD } from '@Shared/Constants';
 import { logger } from '@Shared/Logger';
 import { AppError, err, ok, type Result } from '@Shared/Result';
 import type { PacingState, RunSummary, RunTrigger, Settings, TaskKey } from '@Shared/Types';
+import { averageXpPerSession, sizePlan } from '@Shared/Utils/PlanSize';
 import type { AppContext } from './AppContext';
 import { notificationService } from './NotificationService';
 
@@ -31,7 +32,7 @@ export class RunCoordinator {
     }
 
     const loaded = await this.app.settings.load();
-    const settings = this.shapeForTrigger(trigger, loaded);
+    const settings = await this.shapeForTrigger(trigger, loaded);
 
     // Cooldown: stop accidental double-clicks and rapid re-runs. Scheduled runs
     // are exempt because the alarm already spaces them out, and so are targeted
@@ -123,14 +124,31 @@ export class RunCoordinator {
    * The streak guard is a rescue, not a run: one lesson, and stop the moment
    * the daily goal is met. Cloning the settings keeps the stored ones intact —
    * a guard must never quietly rewrite the user's configuration.
+   *
+   * Auto-size works the same way: it shapes a *copy* for this one run, so the
+   * user's session count stays the ceiling it looks like in Options.
    */
-  private shapeForTrigger(trigger: RunTrigger, settings: Settings): Settings {
-    if (trigger !== 'guard') return settings;
-    this.log.info(`Streak guard: one ${GUARD.sessions}-session rescue run.`);
-    return {
-      ...settings,
-      practice: { ...settings.practice, sessions: GUARD.sessions, stopAtDailyGoal: true },
-    };
+  private async shapeForTrigger(trigger: RunTrigger, settings: Settings): Promise<Settings> {
+    if (trigger === 'guard') {
+      this.log.info(`Streak guard: one ${GUARD.sessions}-session rescue run.`);
+      return {
+        ...settings,
+        practice: { ...settings.practice, sessions: GUARD.sessions, stopAtDailyGoal: true },
+      };
+    }
+
+    if (!settings.practice.autoSize) return settings;
+
+    const sized = sizePlan({
+      goal: settings.practice.dailyXpGoal,
+      earned: await this.todayXp(),
+      cap: settings.practice.sessions,
+      avgXpPerSession: averageXpPerSession(await this.app.history.list()),
+    });
+
+    if (!sized.sized) return settings;
+    this.log.info(`Auto-size: ${sized.reason}`);
+    return { ...settings, practice: { ...settings.practice, sessions: sized.sessions } };
   }
 
   /** XP already earned today, from our own run history. */

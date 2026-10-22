@@ -148,6 +148,12 @@ export interface PracticeSettings {
    * the smallest footprint that still counts".
    */
   stopAtDailyGoal: boolean;
+  /**
+   * Size the run from the goal: the session count above becomes a ceiling and
+   * the actual count is computed from `(goal − today's XP) / average XP per
+   * lesson`. Off by default, because it makes a run's shape depend on history.
+   */
+  autoSize: boolean;
 }
 
 export interface RewardsSettings {
@@ -168,6 +174,12 @@ export interface FreezeSettings {
   enabled: boolean;
   /** Stop buying once inventory reaches this count. */
   targetCount: number;
+  /**
+   * Insurance: instead of topping the inventory up to `targetCount`, buy only
+   * the cover the forecast says is missing — slack counts today once XP lands,
+   * so a good day needs one freeze fewer.
+   */
+  autoInsure: boolean;
 }
 
 /**
@@ -192,6 +204,16 @@ export interface ScheduleSettings {
   /** Weekdays the scheduler may fire on. 0 = Sunday … 6 = Saturday. */
   days: number[];
   guard: GuardSettings;
+  /**
+   * Last call: a notification that *asks* before anything is sent. The guard
+   * acts on its own; this one only nudges, with a button to run or to wait.
+   */
+  watch: { enabled: boolean; hour: number; minute: number };
+  /**
+   * Vacation: an inclusive date window in which nothing runs — not the
+   * interval schedule, not the guard, not the nudge.
+   */
+  pause: { enabled: boolean; from: string; to: string };
 }
 
 export interface BehaviorSettings {
