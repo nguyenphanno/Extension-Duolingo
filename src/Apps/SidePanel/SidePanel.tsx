@@ -1,3 +1,4 @@
+// Copyright github.com/nguyenphanno © 2026. All rights reserved
 /**
  * SidePanel.tsx — the live console you keep open while a run happens.
  *
@@ -7,9 +8,12 @@
 import { useEffect, useState } from 'react';
 import { formatCompact, formatNumber } from '@Shared/Utils/Format';
 import { formatDuration, formatRelative } from '@Shared/Utils/Time';
-import type { TaskOutcome } from '@Shared/Types';
+import type { RunPhase, TaskOutcome, TaskKey } from '@Shared/Types';
 import { useAppState } from '@Ui/Hooks/UseAppState';
 import { useTheme } from '@Ui/Hooks/UseTheme';
+import { useLocale } from '@Ui/Hooks/UseLocale';
+import { useT } from '@Ui/I18n/I18n';
+import type { MessageKey } from '@Ui/I18n/Messages';
 import { BrandMark } from '@Ui/Components/BrandMark';
 import { Button, IconButton } from '@Ui/Components/Button';
 import { Card, CardHeader } from '@Ui/Components/Card';
@@ -26,7 +30,6 @@ import {
   GemIcon,
   HeartIcon,
   HistoryIcon,
-  OwlIcon,
   PlayIcon,
   RefreshIcon,
   StopIcon,
@@ -36,7 +39,9 @@ import './SidePanel.css';
 
 export function SidePanel() {
   const app = useAppState();
+  const t = useT();
   useTheme(app.state?.settings.ui.theme);
+  useLocale(app.state?.settings.ui.locale);
   const [now, setNow] = useState(Date.now());
 
   const run = app.state?.run;
@@ -49,7 +54,7 @@ export function SidePanel() {
   }, [busy]);
 
   if (!app.state) {
-    return <div className="panel panel--loading">Loading console…</div>;
+    return <div className="panel panel--loading">{t('panel.loading')}</div>;
   }
 
   const { state } = app;
@@ -63,23 +68,23 @@ export function SidePanel() {
         <div className="panel__brand">
           <BrandMark size={34} />
           <div>
-            <strong>Live console</strong>
-            <span>{state.profile ? `@${state.profile.username}` : 'not signed in'}</span>
+            <strong>{t('panel.title')}</strong>
+            <span>{state.profile ? `@${state.profile.username}` : t('panel.notSignedIn')}</span>
           </div>
         </div>
         <div className="panel__head-actions">
           <Pill tone={busy ? 'blue' : run?.phase === 'failed' ? 'red' : 'green'}>
-            {busy ? 'running' : run?.phase ?? 'idle'}
+            {t(`phase.${(run?.phase ?? 'idle') as RunPhase}` as MessageKey)}
           </Pill>
           <label className="panel__dry">
-            <span>Dry run</span>
+            <span>{t('panel.dryRun')}</span>
             <Toggle
               label=""
               checked={state.settings.behavior.dryRun}
               onChange={(next) => void app.patchSettings((draft) => void (draft.behavior.dryRun = next))}
             />
           </label>
-          <IconButton label="Refresh profile" onClick={() => void app.refreshProfile()}>
+          <IconButton label={t('popup.refresh')} onClick={() => void app.refreshProfile()}>
             <RefreshIcon size={17} />
           </IconButton>
         </div>
@@ -89,8 +94,8 @@ export function SidePanel() {
         <Card tone={busy ? 'blue' : 'default'} className="panel__run">
           <div className="panel__run-top">
             <div>
-              <span className="u-upper u-faint">{busy ? 'Current step' : 'Ready'}</span>
-              <h2>{busy ? run?.currentLabel : run?.phase === 'done' ? 'Run complete' : 'Idle'}</h2>
+              <span className="u-upper u-faint">{busy ? t('panel.currentStep') : t('panel.ready')}</span>
+              <h2>{busy ? run?.currentLabel : run?.phase === 'done' ? t('panel.complete') : t('panel.idle')}</h2>
             </div>
             <div className="panel__run-time">
               <ClockIcon size={15} />
@@ -101,51 +106,79 @@ export function SidePanel() {
             <ProgressBar value={busy ? run?.progress ?? 0 : 1} animated={busy} height={18} />
           ) : (
             <div className="panel__plan">
-              <Pill tone="green">{state.settings.practice.sessions} sessions</Pill>
-              <Pill tone="blue">{state.settings.rewards.enabled ? 'rewards on' : 'rewards off'}</Pill>
-              <Pill tone="gold">{state.settings.freeze.enabled ? 'freeze on' : 'freeze off'}</Pill>
-              <Pill tone="neutral">{state.settings.behavior.dryRun ? 'dry run' : 'live'}</Pill>
+              <Pill tone="green">{t('panel.sessions', { n: state.settings.practice.sessions })}</Pill>
+              <Pill tone="blue">{state.settings.rewards.enabled ? t('panel.rewardsOn') : t('panel.rewardsOff')}</Pill>
+              <Pill tone="gold">{state.settings.freeze.enabled ? t('panel.freezeOn') : t('panel.freezeOff')}</Pill>
+              <Pill tone="neutral">{state.settings.behavior.dryRun ? t('panel.dry') : t('panel.live')}</Pill>
             </div>
           )}
           <div className="panel__run-actions">
             {busy ? (
               <Button variant="danger" icon={<StopIcon size={15} />} onClick={() => void app.cancelRun()}>
-                Cancel
+                {t('panel.cancel')}
               </Button>
             ) : (
               <Button icon={<PlayIcon size={15} />} onClick={() => void app.startRun()}>
-                Start run
+                {t('panel.start')}
               </Button>
             )}
-            <Button
-              variant="secondary"
-              icon={<TrashIcon size={15} />}
-              onClick={() => void app.clearLogs()}
-            >
-              Clear log
+            <Button variant="secondary" icon={<TrashIcon size={15} />} onClick={() => void app.clearLogs()}>
+              {t('panel.clearLog')}
             </Button>
           </div>
         </Card>
 
         <div className="panel__stats">
-          <Stat icon={<BoltIcon size={15} />} value={formatCompact(state.profile?.totalXp ?? 0)} label="XP" tone="gold" compact />
-          <Stat icon={<GemIcon size={15} />} value={formatCompact(state.profile?.gems ?? 0)} label="Gems" tone="blue" compact />
-          <Stat icon={<FlameIcon size={15} />} value={state.profile?.streak ?? 0} label="Streak" tone="orange" compact />
-          <Stat icon={<HeartIcon size={15} />} value={state.profile?.hearts ?? 5} label="Hearts" tone="red" compact />
+          <Stat
+            icon={<BoltIcon size={15} />}
+            value={formatCompact(state.profile?.totalXp ?? 0)}
+            label={t('popup.statXp')}
+            tone="gold"
+            compact
+          />
+          <Stat
+            icon={<GemIcon size={15} />}
+            value={formatCompact(state.profile?.gems ?? 0)}
+            label={t('popup.statGems')}
+            tone="blue"
+            compact
+          />
+          <Stat
+            icon={<FlameIcon size={15} />}
+            value={state.profile?.streak ?? 0}
+            label={t('popup.dayStreak')}
+            tone="orange"
+            compact
+          />
+          <Stat
+            icon={<HeartIcon size={15} />}
+            value={state.profile?.hearts ?? 5}
+            label={t('popup.statHearts')}
+            tone="red"
+            compact
+          />
         </div>
 
         <Card>
           <CardHeader
-            title="Task timeline"
-            subtitle={summary ? `${formatNumber(summary.xpGained)} XP · ${summary.rewardsClaimed} rewards · ${summary.gemsClaimed} gems` : 'No run yet'}
+            title={t('panel.timeline')}
+            subtitle={
+              summary
+                ? t('panel.summaryLine', {
+                    xp: formatNumber(summary.xpGained),
+                    rewards: summary.rewardsClaimed,
+                    gems: summary.gemsClaimed,
+                  })
+                : t('panel.noRun')
+            }
             icon={<HistoryIcon size={18} />}
             action={summary ? <Pill tone="neutral">{formatRelative(summary.finishedAt)}</Pill> : undefined}
           />
           {tasks.length === 0 ? (
             <EmptyState
               icon={<HistoryIcon size={22} />}
-              title="Nothing recorded yet"
-              body="Start a run and each task will appear here with its result."
+              title={t('panel.emptyTitle')}
+              body={t('panel.emptyBody')}
             />
           ) : (
             <ol className="timeline">
@@ -157,7 +190,11 @@ export function SidePanel() {
         </Card>
 
         <Card className="panel__log-card">
-          <CardHeader title="Output" subtitle={`${state.logs.length} lines buffered`} icon={<AlertIcon size={18} />} />
+          <CardHeader
+            title={t('panel.output')}
+            subtitle={t('panel.buffered', { n: state.logs.length })}
+            icon={<AlertIcon size={18} />}
+          />
           <LogConsole logs={state.logs} height={300} />
         </Card>
       </div>
@@ -167,15 +204,31 @@ export function SidePanel() {
   );
 }
 
+const TASK_LABEL: Record<TaskKey, MessageKey> = {
+  practice: 'task.practice',
+  rewards: 'task.rewards',
+  badge: 'task.badge',
+  boost: 'task.boost',
+  super: 'task.super',
+  freeze: 'task.freeze',
+};
+
 function TimelineRow({ task }: { task: TaskOutcome }) {
+  const t = useT();
   const icon =
-    task.status === 'done' ? <CheckIcon size={14} /> : task.status === 'failed' ? <AlertIcon size={14} /> : <ClockIcon size={14} />;
+    task.status === 'done' ? (
+      <CheckIcon size={14} />
+    ) : task.status === 'failed' ? (
+      <AlertIcon size={14} />
+    ) : (
+      <ClockIcon size={14} />
+    );
   const duration = Math.max(0, task.finishedAt - task.startedAt);
   return (
     <li className={`timeline__row timeline__row--${task.status}`}>
       <span className="timeline__dot">{icon}</span>
       <div className="timeline__text">
-        <strong>{task.label}</strong>
+        <strong>{t(TASK_LABEL[task.task])}</strong>
         <span>{task.headline}</span>
         {task.detail ? <em>{task.detail}</em> : null}
       </div>

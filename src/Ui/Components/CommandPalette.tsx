@@ -1,3 +1,4 @@
+// Copyright github.com/nguyenphanno © 2026. All rights reserved
 /**
  * CommandPalette.tsx — a command-palette launcher for every surface action.
  *

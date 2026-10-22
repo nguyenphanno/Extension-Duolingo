@@ -1,9 +1,13 @@
+// Copyright github.com/nguyenphanno © 2026. All rights reserved
 /**
  * Options.tsx — the full settings surface.
  *
  * Every control writes through `patchSettings`, which round-trips to the
  * service worker and re-renders from the authoritative state. No local form
  * state to drift out of sync.
+ *
+ * All copy comes from the message catalogue; the language switch re-renders the
+ * page in place, including the command palette.
  */
 import { useEffect, useMemo, useState } from 'react';
 import { formatCompact, formatNumber } from '@Shared/Utils/Format';
@@ -15,6 +19,8 @@ import { bridge } from '@Shared/Bridge/ExtensionBridge';
 import { useAppState } from '@Ui/Hooks/UseAppState';
 import { useTheme } from '@Ui/Hooks/UseTheme';
 import { useLocale } from '@Ui/Hooks/UseLocale';
+import { tp, useT } from '@Ui/I18n/I18n';
+import type { MessageKey } from '@Ui/I18n/Messages';
 import { BrandMark } from '@Ui/Components/BrandMark';
 import { Button, IconButton } from '@Ui/Components/Button';
 import { Card, CardHeader } from '@Ui/Components/Card';
@@ -24,7 +30,9 @@ import { Bars, Divider, EmptyState, Pill, ProgressBar, Stat } from '@Ui/Componen
 import { Heatmap } from '@Ui/Components/Heatmap';
 import { AchievementGrid, StreakForecastStrip } from '@Ui/Components/Insights';
 import { LogConsole } from '@Ui/Components/LogConsole';
+import { PlanPreview } from '@Ui/Components/PlanPreview';
 import { ToastStack } from '@Ui/Components/Toast';
+import { WeeklyReport } from '@Ui/Components/WeeklyReport';
 import {
   AlertIcon,
   BoltIcon,
@@ -71,16 +79,26 @@ type Section =
   | 'data'
   | 'about';
 
-const NAV: Array<{ id: Section; label: string; icon: JSX.Element }> = [
-  { id: 'account', label: 'Account', icon: <KeyIcon size={17} /> },
-  { id: 'practice', label: 'Practice', icon: <BoltIcon size={17} /> },
-  { id: 'activity', label: 'Activity', icon: <ChartIcon size={17} /> },
-  { id: 'rewards', label: 'Rewards & badges', icon: <TrophyIcon size={17} /> },
-  { id: 'schedule', label: 'Schedule', icon: <CalendarIcon size={17} /> },
-  { id: 'safety', label: 'Safety & PRO', icon: <ShieldIcon size={17} /> },
-  { id: 'appearance', label: 'Appearance', icon: <SparkleIcon size={17} /> },
-  { id: 'data', label: 'Data', icon: <DownloadIcon size={17} /> },
-  { id: 'about', label: 'About', icon: <OwlIcon size={17} /> },
+const NAV: Array<{ id: Section; labelKey: MessageKey; icon: JSX.Element }> = [
+  { id: 'account', labelKey: 'nav.account', icon: <KeyIcon size={17} /> },
+  { id: 'practice', labelKey: 'nav.practice', icon: <BoltIcon size={17} /> },
+  { id: 'activity', labelKey: 'nav.activity', icon: <ChartIcon size={17} /> },
+  { id: 'rewards', labelKey: 'nav.rewards', icon: <TrophyIcon size={17} /> },
+  { id: 'schedule', labelKey: 'nav.schedule', icon: <CalendarIcon size={17} /> },
+  { id: 'safety', labelKey: 'nav.safety', icon: <ShieldIcon size={17} /> },
+  { id: 'appearance', labelKey: 'nav.appearance', icon: <SparkleIcon size={17} /> },
+  { id: 'data', labelKey: 'nav.data', icon: <DownloadIcon size={17} /> },
+  { id: 'about', labelKey: 'nav.about', icon: <OwlIcon size={17} /> },
+];
+
+const DAY_KEYS: MessageKey[] = [
+  'weekday.sun',
+  'weekday.mon',
+  'weekday.tue',
+  'weekday.wed',
+  'weekday.thu',
+  'weekday.fri',
+  'weekday.sat',
 ];
 
 /** Section ids are deep-linkable: `Options.html?section=activity`. */
@@ -114,10 +132,16 @@ function exportHistory(runs: RunSummary[]): void {
 }
 
 function RunRow({ run, onRetry }: { run: RunSummary; onRetry?: (only: TaskKey[]) => void }) {
+  const t = useT();
   const [open, setOpen] = useState(false);
   const failed = run.tasks.filter((task) => task.status === 'failed').length;
   const status = run.error ? 'failed' : failed > 0 ? 'warn' : 'ok';
   const retryable = [...new Set(run.tasks.filter((task) => task.status === 'failed').map((task) => task.task))];
+
+  const totalDuration = run.finishedAt - run.startedAt;
+  const xpDelta = run.before && run.after ? run.after.totalXp - run.before.totalXp : run.xpGained;
+  const gemDelta = run.before && run.after ? run.after.gems - run.before.gems : run.gemsClaimed;
+  const streakDelta = run.before && run.after ? run.after.streak - run.before.streak : 0;
 
   return (
     <li className={`run-row run-row--${status}`}>
@@ -125,31 +149,126 @@ function RunRow({ run, onRetry }: { run: RunSummary; onRetry?: (only: TaskKey[])
         <span className="run-row__dot" />
         <span className="run-row__when">
           <b>{formatRelative(run.startedAt)}</b>
-          <em>{run.trigger}{run.dryRun ? ' · dry' : ''}</em>
+          <em>
+            {t(`trigger.${run.trigger}` as MessageKey)}
+            {run.dryRun ? t('run.drySuffix') : ''}
+          </em>
         </span>
         <span className="run-row__nums">
           <b>+{run.xpGained}</b> XP
-          <em>{run.rewardsClaimed} rewards · {run.gemsClaimed} gems</em>
+          <em>
+            {run.rewardsClaimed} · {run.gemsClaimed}
+          </em>
         </span>
-        <span className="run-row__time">{formatDuration(run.finishedAt - run.startedAt)}</span>
+        <span className="run-row__time">{formatDuration(totalDuration)}</span>
         <ChevronRightIcon size={14} className={open ? 'is-open' : ''} />
       </button>
       {open ? (
         <div className="run-row__detail">
-          {run.tasks.map((task) => (
-            <div key={`${task.task}-${task.startedAt}`} className={`run-task run-task--${task.status}`}>
-              <span>{task.label}</span>
-              <em>{task.headline}</em>
+          <div className="run-detail__summary">
+            <div className="kv kv--tight">
+              <div>
+                <span>{t('run.xpGained')}</span>
+                <b>+{run.xpGained}</b>
+              </div>
+              <div>
+                <span>{t('run.rewardsClaimed')}</span>
+                <b>{run.rewardsClaimed}</b>
+              </div>
+              <div>
+                <span>{t('run.gemsClaimed')}</span>
+                <b>{run.gemsClaimed}</b>
+              </div>
+              <div>
+                <span>{t('run.duration')}</span>
+                <b>{formatDuration(totalDuration)}</b>
+              </div>
             </div>
-          ))}
-          {run.error ? <div className="run-task run-task--failed"><span>Error</span><em>{run.error}</em></div> : null}
+
+            {(run.before || run.after) && (
+              <div className="run-detail__snapshots">
+                {run.before && (
+                  <div className="snapshot">
+                    <span>{t('run.before')}</span>
+                    <b>XP {formatNumber(run.before.totalXp)}</b>
+                    <em>{run.before.streak} streak · {run.before.gems} gems</em>
+                  </div>
+                )}
+                <span className="snapshot__arrow">→</span>
+                {run.after && (
+                  <div className="snapshot">
+                    <span>{t('run.after')}</span>
+                    <b>XP {formatNumber(run.after.totalXp)}</b>
+                    <em>
+                      {run.after.streak} streak
+                      {streakDelta !== 0 ? ` (${streakDelta > 0 ? '+' : ''}${streakDelta})` : ''}
+                      {' · '}
+                      {run.after.gems} gems
+                      {gemDelta !== 0 ? ` (${gemDelta > 0 ? '+' : ''}${gemDelta})` : ''}
+                    </em>
+                  </div>
+                )}
+                <div className="snapshot">
+                  <span>{t('run.delta')}</span>
+                  <b>+{formatNumber(xpDelta)}</b>
+                  <em>XP</em>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {run.sessions.length > 0 && (
+            <div className="run-detail__sessions">
+              <span className="run-detail__label">{t('run.sessions')}</span>
+              <div className="session-chips">
+                {run.sessions.map((session) => (
+                  <span key={session.sessionId} className={`session-chip session-chip--${session.ok ? 'ok' : 'fail'}`}>
+                    <b>{t('run.sessionIndex', { n: session.index + 1 })}</b>
+                    <em>{session.xp} XP · {formatDuration(session.durationMs)}</em>
+                    <span>{session.ok ? t('run.sessionOk') : t('run.sessionFail')}</span>
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <div className="run-detail__tasks">
+            {run.tasks.length > 0 ? (
+              run.tasks.map((task) => (
+                <div key={`${task.task}-${task.startedAt}`} className={`run-task run-task--${task.status}`}>
+                  <div className="run-task__head">
+                    <span className="run-task__name">{t(`task.${task.task}` as MessageKey)}</span>
+                    <em>{task.headline}</em>
+                    <span className="run-task__time">{formatDuration(task.finishedAt - task.startedAt)}</span>
+                  </div>
+                  {task.detail ? <p className="run-task__detail">{task.detail}</p> : null}
+                  {Object.keys(task.metrics).length > 0 ? (
+                    <div className="run-task__metrics">
+                      {Object.entries(task.metrics).map(([key, value]) => (
+                        <span key={key} className="metric-chip">
+                          <b>{value}</b> <em>{key}</em>
+                        </span>
+                      ))}
+                    </div>
+                  ) : null}
+                </div>
+              ))
+            ) : (
+              <p className="hint">{t('run.noTasks')}</p>
+            )}
+          </div>
+
+          {run.error ? (
+            <div className="run-task run-task--failed">
+              <span>{t('run.error')}</span>
+              <em>{run.error}</em>
+            </div>
+          ) : null}
           {onRetry && retryable.length > 0 ? (
             <div className="run-row__retry">
-              <span>
-                Retry only the {retryable.length} failed task{retryable.length === 1 ? '' : 's'}
-              </span>
+              <span>{retryable.length === 1 ? t('run.retryOne') : t('run.retryMany', { n: retryable.length })}</span>
               <Button size="sm" variant="secondary" icon={<RefreshIcon size={14} />} onClick={() => onRetry(retryable)}>
-                Retry
+                {t('common.retry')}
               </Button>
             </div>
           ) : null}
@@ -159,9 +278,8 @@ function RunRow({ run, onRetry }: { run: RunSummary; onRetry?: (only: TaskKey[])
   );
 }
 
-const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'] as const;
-
 function WeekdayPicker({ value, onChange }: { value: number[]; onChange: (next: number[]) => void }) {
+  const t = useT();
   const toggle = (day: number) => {
     const next = value.includes(day) ? value.filter((item) => item !== day) : [...value, day].sort((a, b) => a - b);
     onChange(next);
@@ -169,34 +287,35 @@ function WeekdayPicker({ value, onChange }: { value: number[]; onChange: (next: 
   return (
     <div className="weekdays">
       <div className="weekdays__head">
-        <span className="weekdays__label">Active days</span>
+        <span className="weekdays__label">{t('weekday.active')}</span>
         <button type="button" className="weekdays__preset" onClick={() => onChange([1, 2, 3, 4, 5])}>
-          Weekdays
+          {t('weekday.weekdays')}
         </button>
         <button type="button" className="weekdays__preset" onClick={() => onChange([0, 1, 2, 3, 4, 5, 6])}>
-          All
+          {t('weekday.all')}
         </button>
       </div>
       <div className="weekdays__row">
-        {WEEKDAYS.map((label, day) => (
+        {DAY_KEYS.map((key, day) => (
           <button
-            key={label}
+            key={key}
             type="button"
             className={`weekdays__day${value.includes(day) ? ' is-on' : ''}`}
             aria-pressed={value.includes(day)}
             onClick={() => toggle(day)}
           >
-            {label}
+            {t(key)}
           </button>
         ))}
       </div>
-      <p className="hint">{value.length === 0 ? 'Nothing selected — the scheduler will never fire.' : `${value.length} day(s) active`}</p>
+      <p className="hint">{value.length === 0 ? t('weekday.none') : tp('weekday.count', value.length)}</p>
     </div>
   );
 }
 
 export function Options() {
   const app = useAppState();
+  const t = useT();
   const [section, setSection] = useState<Section>(sectionFromLocation);
   const [tokenDraft, setTokenDraft] = useState('');
   const [importDraft, setImportDraft] = useState('');
@@ -257,11 +376,31 @@ export function Options() {
     return computeAchievements({ stats: snapshot.stats, profile: snapshot.profile, settings: snapshot.settings });
   }, [app.state]);
 
+  // Plan preview — what the scheduler would do right now.
+  const schedulerBlock = useMemo((): 'disabled' | 'quiet-hours' | 'off-day' | null => {
+    const settings = app.state?.settings;
+    if (!settings) return 'disabled';
+    if (!settings.schedule.enabled) return 'disabled';
+    const now = new Date();
+    const days = settings.schedule.days;
+    if (days.length === 0 || !days.includes(now.getDay())) return 'off-day';
+    const quiet = settings.schedule.quietHours;
+    if (quiet.enabled) {
+      const hour = now.getHours();
+      if (quiet.startHour < quiet.endHour) {
+        if (hour >= quiet.startHour && hour < quiet.endHour) return 'quiet-hours';
+      } else if (hour >= quiet.startHour || hour < quiet.endHour) {
+        return 'quiet-hours';
+      }
+    }
+    return null;
+  }, [app.state?.settings]);
+
   if (!app.state) {
     return (
       <div className="options options--loading">
         <div className="options__side" />
-        <div className="options__main">Loading…</div>
+        <div className="options__main">{t('common.loading')}</div>
       </div>
     );
   }
@@ -270,6 +409,7 @@ export function Options() {
   const s = state.settings;
   const patch = app.patchSettings;
   const badgeCount = achievementSummary(achievements);
+  const todayXp = state.stats.daily[state.stats.daily.length - 1]?.xp ?? 0;
 
   const go = (id: Section) => {
     setSection(id);
@@ -279,53 +419,55 @@ export function Options() {
   const paletteActions: PaletteAction[] = [
     ...NAV.map((item) => ({
       id: `nav-${item.id}`,
-      label: item.label,
-      hint: `Jump to the ${item.label.toLowerCase()} section`,
-      group: 'Navigate',
+      label: t(item.labelKey),
+      hint: t('palette.jump', { section: t(item.labelKey).toLowerCase() }),
+      group: t('palette.navigate'),
       icon: item.icon,
       keywords: 'go open page tab',
       run: () => go(item.id),
     })),
     {
       id: 'run-now',
-      label: 'Run automation now',
-      hint: 'Execute the full enabled plan',
-      group: 'Run',
+      label: t('palette.runNow'),
+      hint: t('palette.runNowHint'),
+      group: t('palette.run'),
       icon: <PlayIcon size={15} />,
       keywords: 'start execute begin',
-      trailing: s.behavior.dryRun ? 'dry' : 'live',
+      trailing: s.behavior.dryRun ? t('palette.dry') : t('palette.live'),
       run: () => void app.startRun(),
     },
     {
       id: 'run-dry',
-      label: s.behavior.dryRun ? 'Turn dry run off' : 'Turn dry run on',
-      hint: 'Simulate without touching the account',
-      group: 'Run',
+      label: s.behavior.dryRun ? t('palette.dryOff') : t('palette.dryOn'),
+      hint: t('palette.dryHint'),
+      group: t('palette.run'),
       icon: <ShieldIcon size={15} />,
       keywords: 'simulate preview safety',
-      trailing: s.behavior.dryRun ? 'on' : 'off',
+      trailing: s.behavior.dryRun ? t('palette.on') : t('palette.off'),
       run: () => void patch((draft) => void (draft.behavior.dryRun = !draft.behavior.dryRun)),
     },
     {
       id: 'refresh',
-      label: 'Refresh profile',
-      hint: 'Re-read the account from Duolingo',
-      group: 'Run',
+      label: t('palette.refresh'),
+      hint: t('palette.refreshHint'),
+      group: t('palette.run'),
       icon: <RefreshIcon size={15} />,
       keywords: 'sync reload',
       run: () => void app.refreshProfile(),
     },
     {
       id: 'retry-failed',
-      label: 'Retry failed tasks',
-      hint: 'Re-run only what failed in the last run',
-      group: 'Run',
+      label: t('palette.retry'),
+      hint: t('palette.retryHint'),
+      group: t('palette.run'),
       icon: <RefreshIcon size={15} />,
       keywords: 'again fix',
       run: () => {
-        const failed = [...new Set((state.lastSummary?.tasks ?? []).filter((task) => task.status === 'failed').map((task) => task.task))];
+        const failed = [
+          ...new Set((state.lastSummary?.tasks ?? []).filter((task) => task.status === 'failed').map((task) => task.task)),
+        ];
         if (failed.length === 0) {
-          app.toast('info', 'Nothing failed in the last run.');
+          app.toast('info', t('palette.retryNone'));
           return;
         }
         void app.startRun(failed);
@@ -333,28 +475,28 @@ export function Options() {
     },
     {
       id: 'theme-dark',
-      label: s.ui.theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme',
-      hint: 'Toggle the interface theme',
-      group: 'Appearance',
+      label: s.ui.theme === 'dark' ? t('palette.themeLight') : t('palette.themeDark'),
+      hint: t('palette.themeHint'),
+      group: t('palette.appearance'),
       icon: s.ui.theme === 'dark' ? <SunIcon size={15} /> : <MoonIcon size={15} />,
       keywords: 'night mode colors',
       run: () => void patch((draft) => void (draft.ui.theme = draft.ui.theme === 'dark' ? 'light' : 'dark')),
     },
     {
       id: 'locale',
-      label: s.ui.locale === 'vi' ? 'Switch to English' : 'Chuyển sang Tiếng Việt',
-      hint: 'Change number and date formatting',
-      group: 'Appearance',
+      label: t('palette.locale', { language: s.ui.locale === 'vi' ? 'English' : 'Tiếng Việt' }),
+      hint: t('palette.localeHint'),
+      group: t('palette.appearance'),
       icon: <GlobeIcon size={15} />,
       keywords: 'language locale ngon ngu',
-      trailing: s.ui.locale,
+      trailing: s.ui.locale.toUpperCase(),
       run: () => void patch((draft) => void (draft.ui.locale = draft.ui.locale === 'vi' ? 'en' : 'vi')),
     },
     {
       id: 'export-history',
-      label: 'Export run history',
-      hint: 'Download every stored run as JSON',
-      group: 'Data',
+      label: t('palette.exportHistory'),
+      hint: t('palette.exportHistoryHint'),
+      group: t('palette.data'),
       icon: <DownloadIcon size={15} />,
       keywords: 'backup save json',
       run: async () => {
@@ -364,41 +506,41 @@ export function Options() {
     },
     {
       id: 'copy-settings',
-      label: 'Copy settings JSON',
-      hint: 'Clipboard backup of the current configuration',
-      group: 'Data',
+      label: t('palette.copySettings'),
+      hint: t('palette.copySettingsHint'),
+      group: t('palette.data'),
       icon: <CopyIcon size={15} />,
       keywords: 'backup clipboard export',
       run: async () => {
         const result = await bridge.send<{ json: string }>({ type: 'settings/export' });
         if (!result.ok) return;
         await navigator.clipboard?.writeText(result.value.json).catch(() => undefined);
-        app.toast('success', 'Settings JSON copied');
+        app.toast('success', t('opt.data.copied'));
       },
     },
     {
       id: 'clear-history',
-      label: 'Clear run history',
-      hint: 'Removes every stored run — cannot be undone',
-      group: 'Data',
+      label: t('palette.clearHistory'),
+      hint: t('palette.clearHistoryHint'),
+      group: t('palette.data'),
       icon: <TrashIcon size={15} />,
       keywords: 'delete wipe reset',
       run: () => void app.clearHistory(),
     },
     {
       id: 'reset',
-      label: 'Reset all settings',
-      hint: 'Back to factory defaults',
-      group: 'Data',
+      label: t('palette.reset'),
+      hint: t('palette.resetHint'),
+      group: t('palette.data'),
       icon: <AlertIcon size={15} />,
       keywords: 'factory defaults restore',
       run: () => void app.resetSettings(),
     },
     {
       id: 'panel',
-      label: 'Open side panel',
-      hint: 'Live console alongside any tab',
-      group: 'Navigate',
+      label: t('palette.panel'),
+      hint: t('palette.panelHint'),
+      group: t('palette.navigate'),
       icon: <ChartIcon size={15} />,
       keywords: 'console live dock',
       run: () => void bridge.send({ type: 'panel/open' }),
@@ -425,7 +567,7 @@ export function Options() {
               onClick={() => go(item.id)}
             >
               {item.icon}
-              <span>{item.label}</span>
+              <span>{t(item.labelKey)}</span>
               <ChevronRightIcon size={14} className="side__chev" />
             </button>
           ))}
@@ -434,14 +576,16 @@ export function Options() {
         <div className="side__status">
           <div className="side__status-row">
             <span className={`dot${s.schedule.enabled ? ' is-on' : ''}`} />
-            <span>{s.schedule.enabled ? `Every ${s.schedule.intervalMinutes}m` : 'Scheduler off'}</span>
+            <span>
+              {s.schedule.enabled ? t('opt.sidebarEvery', { n: s.schedule.intervalMinutes }) : t('opt.sidebarOff')}
+            </span>
           </div>
           <div className="side__status-row">
             <FlameIcon size={14} />
-            <span>{state.profile?.streak ?? 0} day streak</span>
+            <span>{tp('opt.sidebarStreak', state.profile?.streak ?? 0)}</span>
           </div>
           <ProgressBar value={state.stats.successRate / 100} height={8} tone="green" />
-          <span className="side__hint">{state.stats.successRate}% of runs clean</span>
+          <span className="side__hint">{t('opt.sidebarClean', { rate: state.stats.successRate })}</span>
         </div>
       </aside>
 
@@ -450,31 +594,45 @@ export function Options() {
           <div className="hero__left">
             <span className="hero__avatar">{state.profile?.displayName?.charAt(0).toUpperCase() ?? '?'}</span>
             <div>
-              <h1>{state.profile ? `@${state.profile.username}` : 'Connect your account'}</h1>
+              <h1>{state.profile ? `@${state.profile.username}` : t('opt.connectAccount')}</h1>
               <p>
                 {state.token.valid
-                  ? `Session ${state.token.source} · ${state.token.daysLeft ? `${Math.floor(state.token.daysLeft)} days left` : 'no expiry'}`
+                  ? state.token.daysLeft
+                    ? t('opt.sessionLine', { source: state.token.source, days: Math.floor(state.token.daysLeft) })
+                    : t('opt.sessionNoExpiry', { source: state.token.source })
                   : state.token.message}
               </p>
             </div>
           </div>
           <div className="hero__stats">
             <Stat icon={<BoltIcon size={15} />} value={formatCompact(state.profile?.totalXp ?? 0)} label="XP" tone="gold" compact />
-            <Stat icon={<GemIcon size={15} />} value={formatCompact(state.profile?.gems ?? 0)} label="Gems" tone="blue" compact />
-            <Stat icon={<HeartIcon size={15} />} value={state.profile?.hearts ?? 5} label="Hearts" tone="red" compact />
-            <Stat icon={<FlameIcon size={15} />} value={state.profile?.streak ?? 0} label="Streak" tone="orange" compact />
+            <Stat
+              icon={<GemIcon size={15} />}
+              value={formatCompact(state.profile?.gems ?? 0)}
+              label={t('popup.statGems')}
+              tone="blue"
+              compact
+            />
+            <Stat icon={<HeartIcon size={15} />} value={state.profile?.hearts ?? 5} label={t('popup.statHearts')} tone="red" compact />
+            <Stat
+              icon={<FlameIcon size={15} />}
+              value={state.profile?.streak ?? 0}
+              label={t('popup.dayStreak')}
+              tone="orange"
+              compact
+            />
           </div>
           <div className="hero__actions">
             <button type="button" className="hero__palette" onClick={() => setPaletteOpen(true)}>
-              <span>Search actions</span>
+              <span>{t('opt.searchActions')}</span>
               <kbd>{modKey()}</kbd>
               <kbd>K</kbd>
             </button>
             <Button size="sm" variant="secondary" icon={<RefreshIcon size={15} />} onClick={() => void app.refreshProfile()}>
-              Refresh
+              {t('common.refresh')}
             </Button>
             <Button size="sm" icon={<PlayIcon size={15} />} onClick={() => void app.startRun()}>
-              Run now
+              {t('opt.runNow')}
             </Button>
           </div>
         </header>
@@ -483,65 +641,78 @@ export function Options() {
           <div className="stack">
             <Card>
               <CardHeader
-                title="Session source"
-                subtitle="Where the Duolingo token comes from"
+                title={t('opt.account.sourceTitle')}
+                subtitle={t('opt.account.sourceSub')}
                 icon={<KeyIcon size={18} />}
-                action={<Pill tone={state.token.valid ? 'green' : 'red'}>{state.token.valid ? 'Live' : 'Missing'}</Pill>}
+                action={
+                  <Pill tone={state.token.valid ? 'green' : 'red'}>
+                    {state.token.valid ? t('opt.account.live') : t('opt.account.missing')}
+                  </Pill>
+                }
               />
               <Segmented
-                label="Token source"
+                label={t('opt.account.tokenSource')}
                 value={s.tokenSource}
                 onChange={(value) => void patch((draft) => void (draft.tokenSource = value))}
                 options={[
-                  { value: 'cookie', label: 'Browser cookie' },
-                  { value: 'manual', label: 'Manual token' },
+                  { value: 'cookie', label: t('opt.account.cookie') },
+                  { value: 'manual', label: t('opt.account.manual') },
                 ]}
               />
-              <p className="hint">
-                Browser cookie reads <code>jwt_token</code> from duolingo.com automatically — nothing is stored. Manual mode
-                keeps a token you paste yourself.
-              </p>
+              <p className="hint">{t('opt.account.cookieHint')}</p>
               <Divider />
               <Field
-                label="Manual JWT"
+                label={t('opt.account.jwt')}
                 mono
                 type="password"
                 placeholder="eyJhbGciOi…"
                 value={tokenDraft}
                 onChange={setTokenDraft}
-                hint="Stored locally in chrome.storage. Treat it like a password."
+                hint={t('opt.account.jwtHint')}
                 action={
-                  <Button size="sm" variant="secondary" onClick={() => void app.setToken(tokenDraft).then((ok) => ok && setTokenDraft(''))}>
-                    Save
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    onClick={() => void app.setToken(tokenDraft).then((ok) => ok && setTokenDraft(''))}
+                  >
+                    {t('common.save')}
                   </Button>
                 }
               />
               <div className="token-state">
                 <span className={`dot${state.token.valid ? ' is-on' : ''}`} />
                 <span>{state.token.message}</span>
-                {state.token.expiresAt ? <span className="u-faint">expires {formatRelative(state.token.expiresAt)}</span> : null}
+                {state.token.expiresAt ? (
+                  <span className="u-faint">{t('opt.account.expires', { when: formatRelative(state.token.expiresAt) })}</span>
+                ) : null}
               </div>
             </Card>
 
             <Card>
-              <CardHeader title="Profile cache" subtitle="Last known account state" icon={<HistoryIcon size={18} />} />
+              <CardHeader
+                title={t('opt.account.cacheTitle')}
+                subtitle={t('opt.account.cacheSub')}
+                icon={<HistoryIcon size={18} />}
+              />
               <div className="kv">
                 <div>
-                  <span>Username</span>
-                  <b>{state.profile?.username ?? '—'}</b>
+                  <span>{t('opt.account.username')}</span>
+                  <b>{state.profile?.username ?? t('common.dash')}</b>
                 </div>
                 <div>
-                  <span>Course</span>
+                  <span>{t('opt.account.course')}</span>
                   <b>
-                    {state.profile ? `${state.profile.learningLanguage.toUpperCase()} ← ${state.profile.fromLanguage.toUpperCase()}` : '—'}
+                    {state.profile
+                      ? `${state.profile.learningLanguage.toUpperCase()} ← ${state.profile.fromLanguage.toUpperCase()}`
+                      : t('common.dash')}
                   </b>
                 </div>
                 <div>
-                  <span>Fetched</span>
-                  <b>{state.profile ? formatRelative(state.profile.fetchedAt) : '—'}</b>
+                  <span>{t('opt.account.fetched')}</span>
+                  <b>{state.profile ? formatRelative(state.profile.fetchedAt) : t('common.dash')}</b>
                 </div>
                 <div>
-                  <span>Streak freezes</span>
+                  <span>{t('opt.account.freezes')}</span>
                   <b>{state.profile?.streakFreezes ?? 0}/2</b>
                 </div>
               </div>
@@ -553,8 +724,8 @@ export function Options() {
           <div className="stack">
             <Card>
               <CardHeader
-                title="Practice sessions"
-                subtitle="Open and complete lessons to earn XP"
+                title={t('opt.practice.title')}
+                subtitle={t('opt.practice.sub')}
                 icon={<BoltIcon size={18} />}
                 action={
                   <Toggle
@@ -565,15 +736,15 @@ export function Options() {
                 }
               />
               <Stepper
-                label="Sessions per run"
-                hint="0 disables practice entirely"
+                label={t('opt.practice.sessions')}
+                hint={t('opt.practice.sessionsHint')}
                 value={s.practice.sessions}
                 min={0}
                 max={30}
                 onChange={(next) => void patch((draft) => void (draft.practice.sessions = next))}
               />
               <Stepper
-                label="Shortest lesson"
+                label={t('opt.practice.minDuration')}
                 suffix="s"
                 value={s.practice.minDurationSec}
                 min={20}
@@ -582,7 +753,7 @@ export function Options() {
                 onChange={(next) => void patch((draft) => void (draft.practice.minDurationSec = next))}
               />
               <Stepper
-                label="Longest lesson"
+                label={t('opt.practice.maxDuration')}
                 suffix="s"
                 value={s.practice.maxDurationSec}
                 min={20}
@@ -591,7 +762,7 @@ export function Options() {
                 onChange={(next) => void patch((draft) => void (draft.practice.maxDurationSec = next))}
               />
               <Stepper
-                label="Gap between sessions"
+                label={t('opt.practice.gap')}
                 suffix="ms"
                 value={s.practice.delayMinMs}
                 min={0}
@@ -600,16 +771,16 @@ export function Options() {
                 onChange={(next) => void patch((draft) => void (draft.practice.delayMinMs = next))}
               />
               <Stepper
-                label="Hearts reported"
-                hint="Duolingo shows 5 in a clean lesson"
+                label={t('opt.practice.hearts')}
+                hint={t('opt.practice.heartsHint')}
                 value={s.practice.heartsLeft}
                 min={0}
                 max={5}
                 onChange={(next) => void patch((draft) => void (draft.practice.heartsLeft = next))}
               />
               <Stepper
-                label="Daily XP goal"
-                hint="Drives the ring on the popup"
+                label={t('opt.practice.dailyGoal')}
+                hint={t('opt.practice.dailyGoalHint')}
                 suffix="XP"
                 value={s.practice.dailyXpGoal}
                 min={10}
@@ -618,8 +789,8 @@ export function Options() {
                 onChange={(next) => void patch((draft) => void (draft.practice.dailyXpGoal = next))}
               />
               <Stepper
-                label="XP budget per run"
-                hint="Stop early once this much XP is earned. 0 disables the cap."
+                label={t('opt.practice.budget')}
+                hint={t('opt.practice.budgetHint')}
                 suffix="XP"
                 value={s.practice.xpBudget}
                 min={0}
@@ -628,19 +799,44 @@ export function Options() {
                 onChange={(next) => void patch((draft) => void (draft.practice.xpBudget = next))}
               />
               <Toggle
-                label="Stop on first failure"
-                hint="Otherwise the run keeps going and reports failures at the end"
+                label={t('opt.practice.stopOnError')}
+                hint={t('opt.practice.stopOnErrorHint')}
                 checked={s.practice.stopOnError}
                 onChange={(next) => void patch((draft) => void (draft.practice.stopOnError = next))}
               />
+            </Card>
+
+            <Card tone={s.practice.stopAtDailyGoal ? 'green' : 'default'}>
+              <CardHeader
+                title={t('opt.practice.goalTitle')}
+                subtitle={t('opt.practice.goalSub')}
+                icon={<TargetIcon size={18} />}
+                action={
+                  <Toggle
+                    label=""
+                    checked={s.practice.stopAtDailyGoal}
+                    onChange={(next) => void patch((draft) => void (draft.practice.stopAtDailyGoal = next))}
+                  />
+                }
+              />
+              <p className="hint">
+                {s.practice.stopAtDailyGoal
+                  ? t('opt.practice.goalOn', { goal: s.practice.dailyXpGoal })
+                  : t('opt.practice.goalOff', { n: s.practice.sessions })}
+              </p>
+              <p className="hint">{t('opt.practice.goalCounting', { today: todayXp })}</p>
             </Card>
 
             <Card tone="blue">
               <div className="callout">
                 <ClockIcon size={18} />
                 <p>
-                  A 5-session run takes roughly {Math.round((s.practice.sessions * ((s.practice.minDurationSec + s.practice.maxDurationSec) / 2 + 3.5)) / 60)} minutes
-                  including randomised pauses.
+                  {t('opt.practice.eta', {
+                    n: s.practice.sessions,
+                    minutes: Math.round(
+                      (s.practice.sessions * ((s.practice.minDurationSec + s.practice.maxDurationSec) / 2 + 3.5)) / 60,
+                    ),
+                  })}
                 </p>
               </div>
             </Card>
@@ -651,15 +847,19 @@ export function Options() {
           <div className="stack">
             <Card>
               <CardHeader
-                title="Reward sweep"
-                subtitle="Chests, quests, tournament prizes, monthly challenges"
+                title={t('opt.rewards.title')}
+                subtitle={t('opt.rewards.sub')}
                 icon={<GemIcon size={18} />}
                 action={
-                  <Toggle label="" checked={s.rewards.enabled} onChange={(next) => void patch((draft) => void (draft.rewards.enabled = next))} />
+                  <Toggle
+                    label=""
+                    checked={s.rewards.enabled}
+                    onChange={(next) => void patch((draft) => void (draft.rewards.enabled = next))}
+                  />
                 }
               />
               <Stepper
-                label="Maximum claims per run"
+                label={t('opt.rewards.maxClaims')}
                 value={s.rewards.maxClaims}
                 min={0}
                 max={100}
@@ -670,28 +870,32 @@ export function Options() {
 
             <Card>
               <CardHeader
-                title="Monthly badges"
-                subtitle="Reads goals-api and can request a missing badge"
+                title={t('opt.rewards.badges')}
+                subtitle={t('opt.rewards.badgesSub')}
                 icon={<TrophyIcon size={18} />}
                 action={
-                  <Toggle label="" checked={s.badges.enabled} onChange={(next) => void patch((draft) => void (draft.badges.enabled = next))} />
+                  <Toggle
+                    label=""
+                    checked={s.badges.enabled}
+                    onChange={(next) => void patch((draft) => void (draft.badges.enabled = next))}
+                  />
                 }
               />
               <Toggle
-                label="Request missing badges"
-                hint="Uses the third-party PRO bridge — needs it enabled below"
+                label={t('opt.rewards.request')}
+                hint={t('opt.rewards.requestHint')}
                 checked={s.badges.request}
                 onChange={(next) => void patch((draft) => void (draft.badges.request = next))}
               />
               <div className="field-grid">
                 <Field
-                  label="Timezone"
+                  label={t('opt.rewards.timezone')}
                   value={s.badges.timezone}
                   onChange={(value) => void patch((draft) => void (draft.badges.timezone = value))}
-                  hint="IANA name, e.g. Asia/Ho_Chi_Minh"
+                  hint={t('opt.rewards.timezoneHint')}
                 />
                 <Field
-                  label="Years to scan"
+                  label={t('opt.rewards.years')}
                   value={s.badges.years.join(', ')}
                   onChange={(value) =>
                     void patch((draft) => {
@@ -701,11 +905,11 @@ export function Options() {
                         .filter((year) => Number.isInteger(year) && year > 2000);
                     })
                   }
-                  hint="Comma separated"
+                  hint={t('opt.rewards.yearsHint')}
                 />
               </div>
               <Stepper
-                label="Requests per run"
+                label={t('opt.rewards.perRun')}
                 value={s.badges.maxRequestsPerRun}
                 min={0}
                 max={12}
@@ -714,15 +918,19 @@ export function Options() {
             </Card>
 
             <Card>
-              <CardHeader title="Streak freeze" subtitle="Buy a freeze when inventory is low" icon={<ShieldIcon size={18} />} />
+              <CardHeader
+                title={t('opt.rewards.freeze')}
+                subtitle={t('opt.rewards.freezeSub')}
+                icon={<ShieldIcon size={18} />}
+              />
               <Toggle
-                label="Auto top-up"
-                hint="Stops at the target count"
+                label={t('opt.rewards.freezeToggle')}
+                hint={t('opt.rewards.freezeHint')}
                 checked={s.freeze.enabled}
                 onChange={(next) => void patch((draft) => void (draft.freeze.enabled = next))}
               />
               <Stepper
-                label="Target inventory"
+                label={t('opt.rewards.target')}
                 value={s.freeze.targetCount}
                 min={0}
                 max={2}
@@ -734,13 +942,19 @@ export function Options() {
 
         {section === 'activity' ? (
           <div className="stack">
+            <WeeklyReport stats={state.stats} dailyGoal={s.practice.dailyXpGoal} />
+
             {forecast ? (
               <Card tone={forecast.tone === 'red' ? 'red' : forecast.tone === 'gold' ? 'gold' : 'green'}>
                 <CardHeader
-                  title="Streak forecast"
-                  subtitle={forecast.headline}
+                  title={t('opt.activity.forecast')}
+                  subtitle={t(forecast.headline.key as MessageKey, forecast.headline.vars)}
                   icon={<FlameIcon size={18} />}
-                  action={<Pill tone={forecast.slack > 0 ? 'green' : 'red'}>{forecast.slack} day(s) slack</Pill>}
+                  action={
+                    <Pill tone={forecast.slack > 0 ? 'green' : 'red'}>
+                      {forecast.slack === 1 ? t('forecast.daysSlackOne') : t('forecast.daysSlack', { n: forecast.slack })}
+                    </Pill>
+                  }
                 />
                 <StreakForecastStrip forecast={forecast} />
               </Card>
@@ -748,57 +962,54 @@ export function Options() {
 
             <Card>
               <CardHeader
-                title="XP heatmap"
-                subtitle="Eight weeks of activity"
+                title={t('opt.activity.heatmap')}
+                subtitle={t('opt.activity.heatmapSub')}
                 icon={<ChartIcon size={18} />}
-                action={<Pill tone="green">{formatNumber(state.stats.xp)} XP logged</Pill>}
+                action={<Pill tone="green">{t('opt.activity.logged', { xp: formatNumber(state.stats.xp) })}</Pill>}
               />
               <div className="heat-wrap">
                 <Heatmap data={heatCells} weeks={8} />
                 <div className="heat-facts">
                   <div className="heat-fact">
                     <b>{heatFacts.activeDays}</b>
-                    <span>Active days</span>
+                    <span>{t('opt.activity.activeDays')}</span>
                   </div>
                   <div className="heat-fact">
                     <b>{formatNumber(heatFacts.best)}</b>
-                    <span>Best day XP</span>
+                    <span>{t('opt.activity.bestDay')}</span>
                   </div>
                   <div className="heat-fact">
                     <b>{formatNumber(heatFacts.average)}</b>
-                    <span>Avg per active day</span>
+                    <span>{t('opt.activity.average')}</span>
                   </div>
                 </div>
               </div>
             </Card>
             <Card>
               <CardHeader
-                title="Achievements"
-                subtitle={`${badgeCount.unlocked} of ${badgeCount.total} unlocked`}
+                title={t('opt.activity.achievements')}
+                subtitle={t('opt.activity.unlocked', { n: badgeCount.unlocked, total: badgeCount.total })}
                 icon={<TrophyIcon size={18} />}
-                action={<Pill tone={badgeCount.unlocked > 0 ? 'gold' : 'neutral'}>{Math.round(badgeCount.ratio * 100)}%</Pill>}
+                action={
+                  <Pill tone={badgeCount.unlocked > 0 ? 'gold' : 'neutral'}>{Math.round(badgeCount.ratio * 100)}%</Pill>
+                }
               />
               <AchievementGrid items={achievements} />
             </Card>
 
             <Card>
               <CardHeader
-                title="Run history"
-                subtitle={`${runs.length} run(s) stored locally`}
+                title={t('opt.activity.history')}
+                subtitle={t('opt.activity.historySub', { n: runs.length })}
                 icon={<HistoryIcon size={18} />}
                 action={
-                  <Button
-                    size="sm"
-                    variant="secondary"
-                    icon={<DownloadIcon size={15} />}
-                    onClick={() => exportHistory(runs)}
-                  >
-                    Export
+                  <Button size="sm" variant="secondary" icon={<DownloadIcon size={15} />} onClick={() => exportHistory(runs)}>
+                    {t('common.export')}
                   </Button>
                 }
               />
               {runs.length === 0 ? (
-                <EmptyState icon={<HistoryIcon size={22} />} title="No runs yet" body="Every run you start is recorded here." />
+                <EmptyState icon={<HistoryIcon size={22} />} title={t('opt.activity.noRuns')} body={t('opt.activity.noRunsBody')} />
               ) : (
                 <ul className="run-list">
                   {runs.slice(0, 25).map((run) => (
@@ -814,15 +1025,19 @@ export function Options() {
           <div className="stack">
             <Card>
               <CardHeader
-                title="Scheduled runs"
-                subtitle="Backed by chrome.alarms — survives browser restarts"
+                title={t('opt.schedule.title')}
+                subtitle={t('opt.schedule.sub')}
                 icon={<CalendarIcon size={18} />}
                 action={
-                  <Toggle label="" checked={s.schedule.enabled} onChange={(next) => void patch((draft) => void (draft.schedule.enabled = next))} />
+                  <Toggle
+                    label=""
+                    checked={s.schedule.enabled}
+                    onChange={(next) => void patch((draft) => void (draft.schedule.enabled = next))}
+                  />
                 }
               />
               <Stepper
-                label="Interval"
+                label={t('opt.schedule.interval')}
                 suffix="min"
                 value={s.schedule.intervalMinutes}
                 min={15}
@@ -830,34 +1045,78 @@ export function Options() {
                 step={15}
                 onChange={(next) => void patch((draft) => void (draft.schedule.intervalMinutes = next))}
               />
-              <WeekdayPicker
-                value={s.schedule.days}
-                onChange={(next) => void patch((draft) => void (draft.schedule.days = next))}
-              />
+              <WeekdayPicker value={s.schedule.days} onChange={(next) => void patch((draft) => void (draft.schedule.days = next))} />
               <Toggle
-                label="Run once on browser start"
-                hint="Useful after a reboot, skipped during quiet hours"
+                label={t('opt.schedule.runOnStartup')}
+                hint={t('opt.schedule.runOnStartupHint')}
                 checked={s.schedule.runOnStartup}
                 onChange={(next) => void patch((draft) => void (draft.schedule.runOnStartup = next))}
               />
               <div className="next-run">
                 <ClockIcon size={16} />
                 <span>
-                  {state.schedule.nextRunAt ? `Next run ${formatRelative(state.schedule.nextRunAt)}` : 'No run scheduled'}
+                  {state.schedule.nextRunAt
+                    ? t('opt.schedule.next', { when: formatRelative(state.schedule.nextRunAt) })
+                    : t('opt.schedule.none')}
+                </span>
+              </div>
+            </Card>
+
+            <Card tone={s.schedule.guard.enabled ? 'green' : 'default'}>
+              <CardHeader
+                title={t('opt.schedule.guard')}
+                subtitle={t('opt.schedule.guardSub')}
+                icon={<FlameIcon size={18} />}
+                action={
+                  <Toggle
+                    label=""
+                    checked={s.schedule.guard.enabled}
+                    onChange={(next) => void patch((draft) => void (draft.schedule.guard.enabled = next))}
+                  />
+                }
+              />
+              <div className="field-grid">
+                <Stepper
+                  label={t('opt.schedule.guardHour')}
+                  suffix="h"
+                  value={s.schedule.guard.hour}
+                  min={0}
+                  max={23}
+                  onChange={(next) => void patch((draft) => void (draft.schedule.guard.hour = next))}
+                />
+                <Stepper
+                  label={t('opt.schedule.guardMinute')}
+                  suffix="min"
+                  value={s.schedule.guard.minute}
+                  min={0}
+                  max={30}
+                  step={30}
+                  onChange={(next) => void patch((draft) => void (draft.schedule.guard.minute = next))}
+                />
+              </div>
+              <p className="hint">{t('opt.schedule.guardHint')}</p>
+              <div className="next-run">
+                <ClockIcon size={16} />
+                <span>
+                  {s.schedule.guard.enabled
+                    ? state.schedule.guardAt
+                      ? t('opt.schedule.guardAt', { when: formatRelative(state.schedule.guardAt) })
+                      : t('opt.schedule.guardTime')
+                    : t('opt.schedule.guardOff')}
                 </span>
               </div>
             </Card>
 
             <Card>
-              <CardHeader title="Quiet hours" subtitle="Never touch your account at night" icon={<MoonIcon size={18} />} />
+              <CardHeader title={t('opt.schedule.quiet')} subtitle={t('opt.schedule.quietSub')} icon={<MoonIcon size={18} />} />
               <Toggle
-                label="Enable quiet hours"
+                label={t('opt.schedule.quietToggle')}
                 checked={s.schedule.quietHours.enabled}
                 onChange={(next) => void patch((draft) => void (draft.schedule.quietHours.enabled = next))}
               />
               <div className="field-grid">
                 <Stepper
-                  label="From"
+                  label={t('opt.schedule.from')}
                   suffix="h"
                   value={s.schedule.quietHours.startHour}
                   min={0}
@@ -865,7 +1124,7 @@ export function Options() {
                   onChange={(next) => void patch((draft) => void (draft.schedule.quietHours.startHour = next))}
                 />
                 <Stepper
-                  label="To"
+                  label={t('opt.schedule.to')}
                   suffix="h"
                   value={s.schedule.quietHours.endHour}
                   min={0}
@@ -874,42 +1133,56 @@ export function Options() {
                 />
               </div>
             </Card>
+
+            <Card>
+              <CardHeader
+                title={t('plan.title')}
+                subtitle={t('plan.sub')}
+                icon={<TargetIcon size={18} />}
+              />
+              <PlanPreview
+                settings={s}
+                block={schedulerBlock}
+                nextRunAt={state.schedule.nextRunAt}
+              />
+            </Card>
           </div>
         ) : null}
 
         {section === 'safety' ? (
           <div className="stack">
             <Card tone="gold">
-              <CardHeader title="Read this once" subtitle="Automation is not endorsed by Duolingo" icon={<AlertIcon size={18} />} />
-              <p className="hint">
-                These calls hit Duolingo's private web endpoints. Automated activity can break the terms of service and, in the
-                worst case, get an account limited. Use an account you control and keep session counts modest.
-              </p>
+              <CardHeader title={t('opt.safety.readTitle')} subtitle={t('opt.safety.readSub')} icon={<AlertIcon size={18} />} />
+              <p className="hint">{t('opt.safety.readBody')}</p>
             </Card>
 
             <Card>
-              <CardHeader title="Run behaviour" subtitle="How careful the automation is" icon={<ShieldIcon size={18} />} />
+              <CardHeader
+                title={t('opt.safety.behaviour')}
+                subtitle={t('opt.safety.behaviourSub')}
+                icon={<ShieldIcon size={18} />}
+              />
               <Toggle
-                label="Dry run"
-                hint="Walk the whole plan, change nothing"
+                label={t('opt.safety.dryRun')}
+                hint={t('opt.safety.dryRunHint')}
                 checked={s.behavior.dryRun}
                 onChange={(next) => void patch((draft) => void (draft.behavior.dryRun = next))}
               />
               <Toggle
-                label="Desktop notifications"
-                hint="A summary when a run finishes"
+                label={t('opt.safety.notifications')}
+                hint={t('opt.safety.notificationsHint')}
                 checked={s.behavior.notifications}
                 onChange={(next) => void patch((draft) => void (draft.behavior.notifications = next))}
               />
               <Toggle
-                label="Streak on the toolbar badge"
-                hint="Shows the live streak number on the icon"
+                label={t('opt.safety.badge')}
+                hint={t('opt.safety.badgeHint')}
                 checked={s.behavior.badgeText}
                 onChange={(next) => void patch((draft) => void (draft.behavior.badgeText = next))}
               />
               <Stepper
-                label="Cooldown between runs"
-                hint="Blocks accidental double-runs; scheduled runs are exempt"
+                label={t('opt.safety.cooldown')}
+                hint={t('opt.safety.cooldownHint')}
                 suffix="s"
                 value={s.behavior.cooldownSeconds}
                 min={0}
@@ -918,38 +1191,65 @@ export function Options() {
                 onChange={(next) => void patch((draft) => void (draft.behavior.cooldownSeconds = next))}
               />
               <Toggle
-                label="Keep the worker awake"
-                hint="Prevents a long run from being suspended mid-way"
+                label={t('opt.safety.keepAlive')}
+                hint={t('opt.safety.keepAliveHint')}
                 checked={s.behavior.keepServiceWorkerAlive}
                 onChange={(next) => void patch((draft) => void (draft.behavior.keepServiceWorkerAlive = next))}
               />
             </Card>
 
-            <Card tone="red">
-              <CardHeader title="Third-party PRO bridge" subtitle="api.duolingopro.net" icon={<GlobeIcon size={18} />} />
+            <Card tone={state.pacing.rateLimitHits > 0 ? 'gold' : 'default'}>
+              <CardHeader
+                title={t('opt.safety.pacing')}
+                subtitle={t('opt.safety.pacingSub')}
+                icon={<ClockIcon size={18} />}
+                action={
+                  <Pill tone={state.pacing.rateLimitHits > 0 ? 'gold' : 'green'}>
+                    ×{state.pacing.factor}
+                  </Pill>
+                }
+              />
+              <div className="kv">
+                <div>
+                  <span>{t('opt.safety.pacingFactor')}</span>
+                  <b>×{state.pacing.factor}</b>
+                </div>
+                <div>
+                  <span>{t('opt.safety.pacingHits')}</span>
+                  <b>{state.pacing.rateLimitHits}</b>
+                </div>
+              </div>
               <p className="hint">
-                Badge requests, Super activation and XP boosts are sent to a third-party service together with your session
-                token. Nothing else in this extension contacts that host.
+                {state.pacing.holdUntil
+                  ? t('opt.safety.pacingHold', { when: formatRelative(state.pacing.holdUntil) })
+                  : state.pacing.rateLimitHits === 0
+                    ? t('opt.safety.pacingIdle')
+                    : t('opt.safety.pacingNote')}
               </p>
+            </Card>
+
+            <Card tone="red">
+              <CardHeader title={t('opt.safety.pro')} subtitle={t('opt.safety.proSub')} icon={<GlobeIcon size={18} />} />
+              <p className="hint">{t('opt.safety.proBody')}</p>
               <Toggle
-                label="Enable PRO features"
+                label={t('opt.safety.proEnable')}
                 checked={s.pro.enabled}
                 onChange={(next) => void patch((draft) => void (draft.pro.enabled = next))}
               />
               <Toggle
-                label="I understand the risk"
-                hint="Required before any request is sent"
+                label={t('opt.safety.proRisk')}
+                hint={t('opt.safety.proRiskHint')}
                 checked={s.pro.acknowledgeRisk}
                 onChange={(next) => void patch((draft) => void (draft.pro.acknowledgeRisk = next))}
               />
               <Divider />
               <Toggle
-                label="Super activation task"
+                label={t('opt.safety.super')}
                 checked={s.super.enabled}
                 onChange={(next) => void patch((draft) => void (draft.super.enabled = next))}
               />
               <Toggle
-                label="Double XP boost task"
+                label={t('opt.safety.boost')}
                 checked={s.boost.enabled}
                 onChange={(next) => void patch((draft) => void (draft.boost.enabled = next))}
               />
@@ -960,18 +1260,19 @@ export function Options() {
         {section === 'appearance' ? (
           <div className="stack">
             <Card>
-              <CardHeader title="Theme" subtitle="Follow the system or pin one" icon={<SunIcon size={18} />} />
+              <CardHeader title={t('opt.appearance.theme')} subtitle={t('opt.appearance.themeSub')} icon={<SunIcon size={18} />} />
               <Segmented<ThemePreference>
                 value={s.ui.theme}
                 onChange={(value) => void patch((draft) => void (draft.ui.theme = value))}
                 options={[
-                  { value: 'system', label: 'System', icon: <GlobeIcon size={14} /> },
-                  { value: 'light', label: 'Light', icon: <SunIcon size={14} /> },
-                  { value: 'dark', label: 'Dark', icon: <MoonIcon size={14} /> },
+                  { value: 'system', label: t('opt.appearance.system'), icon: <GlobeIcon size={14} /> },
+                  { value: 'light', label: t('opt.appearance.light'), icon: <SunIcon size={14} /> },
+                  { value: 'dark', label: t('opt.appearance.dark'), icon: <MoonIcon size={14} /> },
                 ]}
               />
               <Divider />
               <Segmented<Locale>
+                label={t('opt.appearance.language')}
                 value={s.ui.locale}
                 onChange={(value) => void patch((draft) => void (draft.ui.locale = value))}
                 options={[
@@ -979,17 +1280,17 @@ export function Options() {
                   { value: 'en', label: 'English' },
                 ]}
               />
-              <p className="hint">Interface copy currently follows Duolingo's English wording; the locale switch is wired for translations.</p>
+              <p className="hint">{t('opt.appearance.languageHint')}</p>
               <Toggle
-                label="Reduce motion"
-                hint="Disables the progress shimmer and press animations"
+                label={t('opt.appearance.reduceMotion')}
+                hint={t('opt.appearance.reduceMotionHint')}
                 checked={s.ui.reduceMotion}
                 onChange={(next) => void patch((draft) => void (draft.ui.reduceMotion = next))}
               />
             </Card>
 
             <Card>
-              <CardHeader title="Palette" subtitle="Straight from duolingo.com" icon={<SparkleIcon size={18} />} />
+              <CardHeader title={t('opt.appearance.palette')} subtitle={t('opt.appearance.paletteSub')} icon={<SparkleIcon size={18} />} />
               <div className="swatches">
                 {[
                   ['Feather Green', '#58cc02'],
@@ -1016,12 +1317,12 @@ export function Options() {
           <div className="stack">
             <Card>
               <CardHeader
-                title="History"
-                subtitle={`${formatNumber(state.stats.runs)} runs · ${formatNumber(state.stats.xp)} XP`}
+                title={t('opt.data.history')}
+                subtitle={t('opt.data.historySub', { runs: formatNumber(state.stats.runs), xp: formatNumber(state.stats.xp) })}
                 icon={<HistoryIcon size={18} />}
                 action={
                   <Button size="sm" variant="ghost" icon={<TrashIcon size={15} />} onClick={() => void app.clearHistory()}>
-                    Clear
+                    {t('common.clear')}
                   </Button>
                 }
               />
@@ -1029,26 +1330,26 @@ export function Options() {
               <Divider />
               <div className="kv">
                 <div>
-                  <span>Rewards claimed</span>
+                  <span>{t('opt.data.rewardsClaimed')}</span>
                   <b>{formatNumber(state.stats.rewards)}</b>
                 </div>
                 <div>
-                  <span>Gems earned</span>
+                  <span>{t('opt.data.gems')}</span>
                   <b>{formatNumber(state.stats.gems)}</b>
                 </div>
                 <div>
-                  <span>Clean runs</span>
+                  <span>{t('opt.data.clean')}</span>
                   <b>{state.stats.successRate}%</b>
                 </div>
                 <div>
-                  <span>Last run</span>
-                  <b>{state.stats.lastRunAt ? formatRelative(state.stats.lastRunAt) : '—'}</b>
+                  <span>{t('opt.data.last')}</span>
+                  <b>{state.stats.lastRunAt ? formatRelative(state.stats.lastRunAt) : t('common.dash')}</b>
                 </div>
               </div>
             </Card>
 
             <Card>
-              <CardHeader title="Backup" subtitle="Settings only — tokens are never exported" icon={<DownloadIcon size={18} />} />
+              <CardHeader title={t('opt.data.backup')} subtitle={t('opt.data.backupSub')} icon={<DownloadIcon size={18} />} />
               <div className="row-actions">
                 <Button
                   size="sm"
@@ -1058,41 +1359,41 @@ export function Options() {
                     const result = await bridge.send<{ json: string }>({ type: 'settings/export' });
                     if (result.ok) {
                       await navigator.clipboard?.writeText(result.value.json).catch(() => undefined);
-                      app.toast('success', 'Settings JSON copied to clipboard');
+                      app.toast('success', t('opt.data.copied'));
                     }
                   }}
                 >
-                  Export
+                  {t('common.export')}
                 </Button>
                 <Button size="sm" variant="ghost" icon={<UploadIcon size={15} />} onClick={() => go('data')}>
-                  Import below
+                  {t('opt.data.importBelow')}
                 </Button>
                 <Button size="sm" variant="danger" icon={<TrashIcon size={15} />} onClick={() => void app.resetSettings()}>
-                  Reset all
+                  {t('opt.data.resetAll')}
                 </Button>
               </div>
               <Field
-                label="Paste settings JSON"
+                label={t('opt.data.paste')}
                 value={importDraft}
                 onChange={setImportDraft}
-                hint="Merged over defaults and validated field by field"
+                hint={t('opt.data.pasteHint')}
                 action={
                   <Button
                     size="sm"
                     variant="secondary"
                     onClick={async () => {
                       const result = await bridge.send({ type: 'settings/import', payload: importDraft });
-                      app.toast(result.ok ? 'success' : 'error', result.ok ? 'Settings imported' : 'Invalid JSON');
+                      app.toast(result.ok ? 'success' : 'error', result.ok ? t('opt.data.imported') : t('opt.data.invalid'));
                     }}
                   >
-                    Import
+                    {t('common.import')}
                   </Button>
                 }
               />
             </Card>
 
             <Card>
-              <CardHeader title="Recent output" subtitle="Last 150 lines" icon={<SlidersIcon size={18} />} />
+              <CardHeader title={t('opt.data.recent')} subtitle={t('opt.data.recentSub')} icon={<SlidersIcon size={18} />} />
               <LogConsole logs={state.logs} height={200} />
             </Card>
           </div>
@@ -1105,67 +1406,64 @@ export function Options() {
                 <BrandMark size={64} className="about__mark" />
                 <div>
                   <h2>Duo Assist {state.version}</h2>
-                  <p>
-                    A Manifest V3 extension that runs your Duolingo routine for you — practice sessions, reward claims,
-                    monthly badges and streak freezes — inside a UI built on Duolingo's own design language.
-                  </p>
+                  <p>{t('opt.about.tagline')}</p>
                   <div className="about__tags">
-                    <Pill tone="green">Manifest V3</Pill>
-                    <Pill tone="blue">TypeScript</Pill>
-                    <Pill tone="purple">Local-only storage</Pill>
-                    <Pill tone="neutral">No telemetry</Pill>
+                    <Pill tone="green">{t('opt.about.tagMv3')}</Pill>
+                    <Pill tone="blue">{t('opt.about.tagTs')}</Pill>
+                    <Pill tone="purple">{t('opt.about.tagLocal')}</Pill>
+                    <Pill tone="neutral">{t('opt.about.tagTelemetry')}</Pill>
                   </div>
                 </div>
               </div>
             </Card>
 
             <Card>
-              <CardHeader title="What it does" subtitle="Six independent tasks, one ordered plan" icon={<RocketIcon size={18} />} />
+              <CardHeader title={t('opt.about.what')} subtitle={t('opt.about.whatSub')} icon={<RocketIcon size={18} />} />
               <div className="about__grid">
                 <div>
-                  <b>Practice sessions</b>
-                  <span>Opens and completes lessons, with randomised pacing and an optional XP ceiling.</span>
+                  <b>{t('task.practice')}</b>
+                  <span>{t('opt.about.practiceBody')}</span>
                 </div>
                 <div>
-                  <b>Reward sweep</b>
-                  <span>Claims chests, quests, tournament prizes and monthly challenges.</span>
+                  <b>{t('task.rewards')}</b>
+                  <span>{t('opt.about.rewardsBody')}</span>
                 </div>
                 <div>
-                  <b>Monthly badges</b>
-                  <span>Detects finished months that are still missing a badge.</span>
+                  <b>{t('task.badge')}</b>
+                  <span>{t('opt.about.badgesBody')}</span>
                 </div>
                 <div>
-                  <b>Streak freeze</b>
-                  <span>Tops up freeze inventory so a missed day cannot end the streak.</span>
+                  <b>{t('task.freeze')}</b>
+                  <span>{t('opt.about.freezeBody')}</span>
                 </div>
                 <div>
-                  <b>Scheduler</b>
-                  <span>Runs on an interval, on chosen weekdays, outside quiet hours.</span>
+                  <b>{t('opt.schedule.title')}</b>
+                  <span>{t('opt.about.schedulerBody')}</span>
                 </div>
                 <div>
-                  <b>Observability</b>
-                  <span>Live log stream, run history, XP heatmap and a streak forecast.</span>
+                  <b>{t('opt.activity.achievements')}</b>
+                  <span>{t('opt.about.observabilityBody')}</span>
                 </div>
               </div>
             </Card>
 
             <Card>
-              <CardHeader title="Shortcuts" icon={<TargetIcon size={18} />} />
+              <CardHeader title={t('opt.about.shortcuts')} icon={<TargetIcon size={18} />} />
               <div className="kv">
                 <div>
-                  <span>Run automation</span>
+                  <span>{t('opt.about.shortcutRun')}</span>
                   <b>
                     <kbd>Alt</kbd> + <kbd>Shift</kbd> + <kbd>D</kbd>
                   </b>
                 </div>
                 <div>
-                  <span>Open console</span>
+                  <span>{t('opt.about.shortcutConsole')}</span>
                   <b>
                     <kbd>Alt</kbd> + <kbd>Shift</kbd> + <kbd>C</kbd>
                   </b>
                 </div>
                 <div>
-                  <span>Command palette</span>
+                  <span>{t('opt.about.shortcutPalette')}</span>
                   <b>
                     <kbd>{modKey()}</kbd> + <kbd>K</kbd>
                   </b>
@@ -1185,10 +1483,7 @@ export function Options() {
             <Card tone="gold">
               <div className="callout">
                 <AlertIcon size={18} />
-                <p>
-                  Unofficial project. Not affiliated with Duolingo. Automation may violate their terms — use an account you
-                  control and keep runs modest.
-                </p>
+                <p>{t('opt.about.disclaimer')}</p>
               </div>
             </Card>
           </div>
@@ -1196,9 +1491,9 @@ export function Options() {
 
         <footer className="options__footer">
           <span>
-            <CheckIcon size={14} /> Changes save automatically
+            <CheckIcon size={14} /> {t('opt.autosave')}
           </span>
-          <span className="u-faint">{state.stats.runs} runs recorded</span>
+          <span className="u-faint">{t('opt.runsRecorded', { n: state.stats.runs })}</span>
         </footer>
       </main>
 

@@ -1,3 +1,4 @@
+// Copyright github.com/nguyenphanno © 2026. All rights reserved
 /**
  * Heatmap.tsx — a GitHub-style contribution grid for XP.
  *
@@ -6,6 +7,7 @@
  */
 import { useMemo } from 'react';
 import { cx } from '../Utils/Cx';
+import { useT } from '../I18n/I18n';
 
 export interface HeatCell {
   day: string;
@@ -15,6 +17,7 @@ export interface HeatCell {
 const WEEKDAYS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
 
 export function Heatmap({ data, weeks = 8 }: { data: HeatCell[]; weeks?: number }) {
+  const t = useT();
   const { columns, max, total } = useMemo(() => buildGrid(data, weeks), [data, weeks]);
 
   return (
@@ -35,7 +38,7 @@ export function Heatmap({ data, weeks = 8 }: { data: HeatCell[]; weeks?: number 
                   <span
                     key={rowIndex}
                     className={cx('heat__cell', `heat__cell--${level(cell.xp, max)}`)}
-                    title={`${cell.day} · ${cell.xp} XP`}
+                    title={t('heat.cell', { day: cell.day, xp: cell.xp })}
                   />
                 ) : (
                   <span key={rowIndex} className="heat__cell heat__cell--empty" />
@@ -46,13 +49,13 @@ export function Heatmap({ data, weeks = 8 }: { data: HeatCell[]; weeks?: number 
         </div>
       </div>
       <div className="heat__legend">
-        <span>{weeks} weeks · {total} XP</span>
+        <span>{t('heat.legend', { weeks, total })}</span>
         <span className="heat__scale">
-          less
+          {t('heat.less')}
           {[0, 1, 2, 3, 4].map((step) => (
             <i key={step} className={`heat__cell heat__cell--${step}`} />
           ))}
-          more
+          {t('heat.more')}
         </span>
       </div>
     </div>

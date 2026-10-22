@@ -1,3 +1,4 @@
+// Copyright github.com/nguyenphanno © 2026. All rights reserved
 /**
  * UseTheme.ts — resolves 'system' against the OS and writes `data-theme`.
  */

@@ -1,3 +1,4 @@
+// Copyright github.com/nguyenphanno © 2026. All rights reserved
 /**
  * SidePanelMain.tsx — entry point. Mounts the surface and pulls in the design system.
  */

@@ -1,3 +1,4 @@
+// Copyright github.com/nguyenphanno © 2026. All rights reserved
 /**
  * FreezeTask.ts — tops up streak freezes so a missed day cannot break a streak.
  * The shop returns 400 when inventory is already full, which we treat as success.

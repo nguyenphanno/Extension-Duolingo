@@ -1,3 +1,4 @@
+// Copyright github.com/nguyenphanno © 2026. All rights reserved
 /**
  * ServiceWorker.ts — the extension's brain.
  *
@@ -5,6 +6,7 @@
  * point (messages, ports, alarms, commands, context menus).
  */
 import {
+  ALARM_GUARD,
   ALARM_SCHEDULE,
   COMMAND_PANEL,
   COMMAND_RUN,
@@ -130,17 +132,45 @@ chrome.runtime.onMessage.addListener((message: unknown, sender, sendResponse) =>
  * ------------------------------------------------------------------ */
 
 chrome.alarms.onAlarm.addListener((alarm) => {
-  if (alarm.name !== ALARM_SCHEDULE) return;
-  void (async () => {
-    const settings = await app.settings.load();
-    const block = scheduler.blockReason(settings);
-    if (block) {
-      app.log.info(scheduler.describeBlock(block) ?? 'Scheduled run skipped.');
-      return;
-    }
-    await runNow('schedule');
-  })();
+  if (alarm.name === ALARM_SCHEDULE) {
+    void (async () => {
+      const settings = await app.settings.load();
+      const block = scheduler.blockReason(settings);
+      if (block) {
+        app.log.info(scheduler.describeBlock(block) ?? 'Scheduled run skipped.');
+        return;
+      }
+      await runNow('schedule');
+    })();
+    return;
+  }
+
+  if (alarm.name === ALARM_GUARD) void runGuard();
 });
+
+/**
+ * The streak guard: the last chance of the day.
+ *
+ * It runs only when all three conditions hold — the guard is on, the account
+ * has a streak worth protecting, and no XP has landed today. When it does fire
+ * the coordinator shapes it into a single-session rescue, so the cost of being
+ * wrong is one lesson.
+ */
+async function runGuard(): Promise<void> {
+  const settings = await app.settings.load();
+  const stats = await app.history.stats();
+  const todayXp = stats.daily[stats.daily.length - 1]?.xp ?? 0;
+  const streak = app.profile?.streak ?? 0;
+
+  const block = scheduler.guardBlock(settings, todayXp, streak);
+  if (block) {
+    app.log.info(scheduler.describeGuard(block) ?? 'Streak guard skipped.');
+    return;
+  }
+
+  app.log.warn(`Streak guard firing — ${streak}-day streak with no XP today.`);
+  await runNow('guard');
+}
 
 /* ------------------------------------------------------------------ *
  * Commands + context menu

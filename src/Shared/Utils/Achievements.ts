@@ -1,9 +1,14 @@
+// Copyright github.com/nguyenphanno © 2026. All rights reserved
 /**
  * Achievements.ts — milestones derived from history, never stored.
  *
  * Because every value is a pure function of `HistoryStats` + `Profile`, the
  * list is always consistent with what the user sees elsewhere, survives
  * history clearing, and needs no schema migration.
+ *
+ * Labels are returned as translation keys (`ach.<id>.label` / `.hint`) rather
+ * than sentences: this file is in the dependency-free Shared layer, so it must
+ * stay language-agnostic.
  */
 import type { HistoryStats, Profile, Settings } from '../Types';
 
@@ -21,8 +26,10 @@ export type AchievementIcon =
 
 export interface Achievement {
   id: string;
-  label: string;
-  hint: string;
+  /** Translation key for the name, e.g. `ach.firstRun.label`. */
+  labelKey: string;
+  /** Translation key for the requirement, e.g. `ach.firstRun.hint`. */
+  hintKey: string;
   icon: AchievementIcon;
   value: number;
   target: number;
@@ -39,152 +46,44 @@ export interface AchievementInput {
 
 interface Spec {
   id: string;
-  label: string;
-  hint: string;
   icon: AchievementIcon;
   target: number;
   read: (input: AchievementInput) => number;
 }
 
+/** `first-run` -> `firstRun`, so ids stay kebab-case and keys stay camelCase. */
+function camel(id: string): string {
+  return id.replace(/-([a-z0-9])/g, (_, char: string) => char.toUpperCase());
+}
+
 const SPECS: Spec[] = [
-  {
-    id: 'first-run',
-    label: 'First steps',
-    hint: 'Finish one run',
-    icon: 'target',
-    target: 1,
-    read: ({ stats }) => stats.runs,
-  },
-  {
-    id: 'runs-10',
-    label: 'Getting regular',
-    hint: 'Finish 10 runs',
-    icon: 'bolt',
-    target: 10,
-    read: ({ stats }) => stats.runs,
-  },
-  {
-    id: 'runs-50',
-    label: 'Well oiled',
-    hint: 'Finish 50 runs',
-    icon: 'chart',
-    target: 50,
-    read: ({ stats }) => stats.runs,
-  },
-  {
-    id: 'runs-200',
-    label: 'Machine',
-    hint: 'Finish 200 runs',
-    icon: 'crown',
-    target: 200,
-    read: ({ stats }) => stats.runs,
-  },
-  {
-    id: 'xp-1k',
-    label: 'Warmed up',
-    hint: 'Log 1,000 XP',
-    icon: 'star',
-    target: 1_000,
-    read: ({ stats }) => stats.xp,
-  },
-  {
-    id: 'xp-10k',
-    label: 'Ten thousand',
-    hint: 'Log 10,000 XP',
-    icon: 'trophy',
-    target: 10_000,
-    read: ({ stats }) => stats.xp,
-  },
-  {
-    id: 'xp-50k',
-    label: 'Unstoppable',
-    hint: 'Log 50,000 XP',
-    icon: 'crown',
-    target: 50_000,
-    read: ({ stats }) => stats.xp,
-  },
-  {
-    id: 'rewards-50',
-    label: 'Collector',
-    hint: 'Claim 50 rewards',
-    icon: 'gem',
-    target: 50,
-    read: ({ stats }) => stats.rewards,
-  },
-  {
-    id: 'gems-1k',
-    label: 'Gem vault',
-    hint: 'Bank 1,000 gems from runs',
-    icon: 'gem',
-    target: 1_000,
-    read: ({ stats }) => stats.gems,
-  },
-  {
-    id: 'clean-5',
-    label: 'Spotless',
-    hint: '5 clean runs in a row',
-    icon: 'shield',
-    target: 5,
-    read: ({ stats }) => stats.currentStreakOfRuns,
-  },
-  {
-    id: 'streak-7',
-    label: 'One week',
-    hint: 'Reach a 7-day streak',
-    icon: 'flame',
-    target: 7,
-    read: ({ profile }) => profile?.streak ?? 0,
-  },
-  {
-    id: 'streak-30',
-    label: 'One month',
-    hint: 'Reach a 30-day streak',
-    icon: 'flame',
-    target: 30,
-    read: ({ profile }) => profile?.streak ?? 0,
-  },
-  {
-    id: 'streak-100',
-    label: 'Century',
-    hint: 'Reach a 100-day streak',
-    icon: 'flame',
-    target: 100,
-    read: ({ profile }) => profile?.streak ?? 0,
-  },
-  {
-    id: 'streak-365',
-    label: 'Full year',
-    hint: 'Reach a 365-day streak',
-    icon: 'crown',
-    target: 365,
-    read: ({ profile }) => profile?.streak ?? 0,
-  },
-  {
-    id: 'hearts-full',
-    label: 'Full hearts',
-    hint: 'Keep all 5 hearts',
-    icon: 'heart',
-    target: 5,
-    read: ({ profile }) => profile?.hearts ?? 0,
-  },
-  {
-    id: 'scheduler',
-    label: 'Set and forget',
-    hint: 'Turn on scheduled runs',
-    icon: 'target',
-    target: 1,
-    read: ({ settings }) => (settings.schedule.enabled ? 1 : 0),
-  },
+  { id: 'first-run', icon: 'target', target: 1, read: ({ stats }) => stats.runs },
+  { id: 'runs-10', icon: 'bolt', target: 10, read: ({ stats }) => stats.runs },
+  { id: 'runs-50', icon: 'chart', target: 50, read: ({ stats }) => stats.runs },
+  { id: 'runs-200', icon: 'crown', target: 200, read: ({ stats }) => stats.runs },
+  { id: 'xp-1k', icon: 'star', target: 1_000, read: ({ stats }) => stats.xp },
+  { id: 'xp-10k', icon: 'trophy', target: 10_000, read: ({ stats }) => stats.xp },
+  { id: 'xp-50k', icon: 'crown', target: 50_000, read: ({ stats }) => stats.xp },
+  { id: 'rewards-50', icon: 'gem', target: 50, read: ({ stats }) => stats.rewards },
+  { id: 'gems-1k', icon: 'gem', target: 1_000, read: ({ stats }) => stats.gems },
+  { id: 'clean-5', icon: 'shield', target: 5, read: ({ stats }) => stats.currentStreakOfRuns },
+  { id: 'streak-7', icon: 'flame', target: 7, read: ({ profile }) => profile?.streak ?? 0 },
+  { id: 'streak-30', icon: 'flame', target: 30, read: ({ profile }) => profile?.streak ?? 0 },
+  { id: 'streak-100', icon: 'flame', target: 100, read: ({ profile }) => profile?.streak ?? 0 },
+  { id: 'streak-365', icon: 'crown', target: 365, read: ({ profile }) => profile?.streak ?? 0 },
+  { id: 'hearts-full', icon: 'heart', target: 5, read: ({ profile }) => profile?.hearts ?? 0 },
+  { id: 'scheduler', icon: 'target', target: 1, read: ({ settings }) => (settings.schedule.enabled ? 1 : 0) },
 ];
 
 export function computeAchievements(input: AchievementInput): Achievement[] {
   return SPECS.map((spec) => {
     const value = Math.max(0, spec.read(input));
     const progress = Math.min(1, value / spec.target);
+    const key = camel(spec.id);
     return {
       id: spec.id,
-      label: spec.label,
-      hint: spec.hint,
+      labelKey: `ach.${key}.label`,
+      hintKey: `ach.${key}.hint`,
       icon: spec.icon,
       value,
       target: spec.target,

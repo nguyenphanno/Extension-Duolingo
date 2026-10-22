@@ -1,3 +1,4 @@
+// Copyright github.com/nguyenphanno © 2026. All rights reserved
 /**
  * StorageArea.ts — a promise-based, namespaced wrapper over chrome.storage.
  *

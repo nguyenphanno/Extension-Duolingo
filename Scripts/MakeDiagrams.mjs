@@ -1,3 +1,4 @@
+// Copyright github.com/nguyenphanno © 2026. All rights reserved
 /**
  * MakeDiagrams.mjs — generates the README diagrams as standalone SVG.
  *

@@ -1,3 +1,4 @@
+// Copyright github.com/nguyenphanno © 2026. All rights reserved
 /**
  * Format.ts — presentation helpers shared by every surface.
  *
@@ -40,7 +41,8 @@ export function percent(value: number, total: number): number {
 
 export function languageName(code: string): string {
   try {
-    const names = new Intl.DisplayNames(['en'], { type: 'language' });
+    // Resolve in the *active* locale, so a Vietnamese UI says "Tiếng Nhật".
+    const names = new Intl.DisplayNames([activeLocale], { type: 'language' });
     return names.of(code) ?? code.toUpperCase();
   } catch {
     return code.toUpperCase();

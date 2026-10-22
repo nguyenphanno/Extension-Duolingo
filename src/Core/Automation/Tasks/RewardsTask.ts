@@ -1,3 +1,4 @@
+// Copyright github.com/nguyenphanno © 2026. All rights reserved
 /**
  * RewardsTask.ts — sweeps unclaimed reward bundles (quests, chests, monthly
  * challenges, tournament prizes) and marks them consumed.

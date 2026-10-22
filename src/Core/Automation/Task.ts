@@ -1,3 +1,4 @@
+// Copyright github.com/nguyenphanno © 2026. All rights reserved
 /**
  * Task.ts — the contract every automation step implements.
  *
@@ -16,6 +17,11 @@ export interface TaskContext {
   settings: Settings;
   profile: Profile;
   dryRun: boolean;
+  /**
+   * XP already earned today, from run history. Goal mode needs this: a task
+   * cannot know how close the account is to today's target on its own.
+   */
+  todayXp: number;
   signal: AbortSignal;
   log: ScopedLogger;
   /** Cancellable delay. */

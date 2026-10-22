@@ -1,3 +1,4 @@
+// Copyright github.com/nguyenphanno © 2026. All rights reserved
 /**
  * MockData.ts — a believable demo state for `Preview.html`.
  *
@@ -202,9 +203,27 @@ export const MOCK_LOGS: LogEntry[] = [
 
 export const MOCK_SUMMARY: RunSummary = MOCK_RUNS[0] ?? buildRun(0, now - 62_000, seeded(7));
 
+/**
+ * Mock state for the preview harness.
+ *
+ * `?locale=vi` and `?theme=dark` are honoured here (and only here) so the
+ * screenshots in `docs/` are reproducible: the preview has no settings to
+ * persist, so the query string is the only way to pin a starting language.
+ */
 export function mockState(): UiState {
+  const settings = structuredClone(DEFAULT_SETTINGS);
+  try {
+    const params = new URLSearchParams(window.location.search);
+    const locale = params.get('locale');
+    const theme = params.get('theme');
+    if (locale === 'vi' || locale === 'en') settings.ui.locale = locale;
+    if (theme === 'dark' || theme === 'light' || theme === 'system') settings.ui.theme = theme;
+  } catch {
+    /* no window (tests) — keep defaults */
+  }
+
   return {
-    settings: structuredClone(DEFAULT_SETTINGS),
+    settings,
     profile: MOCK_PROFILE,
     run: {
       phase: 'idle',
@@ -232,6 +251,10 @@ export function mockState(): UiState {
     },
     lastSummary: MOCK_SUMMARY,
     version: '2.0.0',
-    schedule: { nextRunAt: now + 1000 * 60 * 90 },
+    schedule: {
+      nextRunAt: now + 1000 * 60 * 90,
+      guardAt: now + 1000 * 60 * 60 * 6,
+    },
+    pacing: { factor: 1, holdUntil: null, rateLimitHits: 0 },
   };
 }

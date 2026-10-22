@@ -1,3 +1,4 @@
+// Copyright github.com/nguyenphanno © 2026. All rights reserved
 /**
  * Constants.ts — magic values live here and nowhere else.
  */
@@ -85,6 +86,7 @@ export const LOG_BUFFER_LIMIT = 400;
 
 export const PORT_NAME = 'duo.stream';
 export const ALARM_SCHEDULE = 'duo.schedule';
+export const ALARM_GUARD = 'duo.guard';
 export const ALARM_KEEPALIVE = 'duo.keepalive';
 export const MENU_RUN_NOW = 'duo.menu.run';
 export const MENU_OPEN_PANEL = 'duo.menu.panel';
@@ -112,4 +114,24 @@ export const NETWORK = {
   baseDelayMs: 700,
   /** Minimum spacing between mutating calls, to look human and dodge 429s. */
   minMutationGapMs: 900,
+} as const;
+
+/**
+ * Adaptive throttle. Every 429 multiplies the gap between mutating requests by
+ * `step`, up to `maxFactor`. The cap exists so a single bad burst cannot turn
+ * the extension into a 30-second-per-request crawl.
+ */
+export const PACING = {
+  step: 1.75,
+  maxFactor: 6,
+  /** Never honour a Retry-After longer than this — give up and report instead. */
+  maxRetryAfterMs: 120_000,
+} as const;
+
+/** Streak guard defaults: late enough to matter, early enough to still act. */
+export const GUARD = {
+  hour: 20,
+  minute: 30,
+  /** Only one lesson — the guard is a rescue, not a run. */
+  sessions: 1,
 } as const;

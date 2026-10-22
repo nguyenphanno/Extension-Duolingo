@@ -1,3 +1,4 @@
+// Copyright github.com/nguyenphanno © 2026. All rights reserved
 /**
  * MessageRouter.ts — the service worker's RPC endpoint.
  *

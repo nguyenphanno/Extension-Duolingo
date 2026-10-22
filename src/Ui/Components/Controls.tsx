@@ -1,3 +1,4 @@
+// Copyright github.com/nguyenphanno © 2026. All rights reserved
 /**
  * Controls.tsx — form primitives with Duolingo proportions.
  */

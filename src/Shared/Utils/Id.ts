@@ -1,3 +1,4 @@
+// Copyright github.com/nguyenphanno © 2026. All rights reserved
 /**
  * Id.ts — collision-resistant ids that work in every context (service worker,
  * content script, page) without relying on `crypto.randomUUID` being present.

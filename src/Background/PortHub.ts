@@ -1,3 +1,4 @@
+// Copyright github.com/nguyenphanno © 2026. All rights reserved
 /**
  * PortHub.ts — long-lived connections to every open UI surface.
  *

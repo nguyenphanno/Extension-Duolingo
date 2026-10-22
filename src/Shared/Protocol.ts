@@ -1,3 +1,4 @@
+// Copyright github.com/nguyenphanno © 2026. All rights reserved
 /**
  * Protocol.ts — the typed contract between UI surfaces and the service worker.
  *
@@ -5,7 +6,17 @@
  * The long-lived port carries `StreamEvent`s so the UI never polls.
  */
 import type { Result } from './Result';
-import type { HistoryStats, LogEntry, Profile, RunState, RunSummary, RunTrigger, Settings, TaskKey } from './Types';
+import type {
+  HistoryStats,
+  LogEntry,
+  PacingState,
+  Profile,
+  RunState,
+  RunSummary,
+  RunTrigger,
+  Settings,
+  TaskKey,
+} from './Types';
 
 export interface TokenInfo {
   present: boolean;
@@ -27,7 +38,8 @@ export interface UiState {
   token: TokenInfo;
   lastSummary: RunSummary | null;
   version: string;
-  schedule: { nextRunAt: number | null };
+  schedule: { nextRunAt: number | null; guardAt: number | null };
+  pacing: PacingState;
 }
 
 export type UiRequest =

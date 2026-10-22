@@ -1,3 +1,4 @@
+// Copyright github.com/nguyenphanno © 2026. All rights reserved
 /**
  * Build.mjs — single-pass bundler for the MV3 extension.
  *

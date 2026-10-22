@@ -1,3 +1,4 @@
+// Copyright github.com/nguyenphanno © 2026. All rights reserved
 /**
  * Toast.tsx — ephemeral feedback, anchored to the bottom of the surface.
  */

@@ -1,3 +1,4 @@
+// Copyright github.com/nguyenphanno © 2026. All rights reserved
 /**
  * ContentScript.ts — a small, self-contained pill on duolingo.com.
  *

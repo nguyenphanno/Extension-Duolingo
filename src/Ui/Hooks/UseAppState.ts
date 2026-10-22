@@ -1,3 +1,4 @@
+// Copyright github.com/nguyenphanno © 2026. All rights reserved
 /**
  * UseAppState.ts — the single state hook every surface uses.
  *

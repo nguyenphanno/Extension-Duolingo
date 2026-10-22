@@ -1,3 +1,4 @@
+// Copyright github.com/nguyenphanno © 2026. All rights reserved
 /**
  * NotificationService.ts — desktop notifications and the toolbar badge.
  * Both are best-effort: a browser without the API must not break a run.

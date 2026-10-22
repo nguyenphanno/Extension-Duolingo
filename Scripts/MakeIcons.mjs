@@ -1,3 +1,4 @@
+// Copyright github.com/nguyenphanno © 2026. All rights reserved
 /**
  * MakeIcons.mjs — generates the extension icon set with zero native deps.
  *

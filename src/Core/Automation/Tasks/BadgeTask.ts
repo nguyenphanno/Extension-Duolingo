@@ -1,3 +1,4 @@
+// Copyright github.com/nguyenphanno © 2026. All rights reserved
 /**
  * BadgeTask.ts — reports missing monthly badges and (optionally) asks the
  * third-party PRO service to grant one.

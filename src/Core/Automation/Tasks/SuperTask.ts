@@ -1,3 +1,4 @@
+// Copyright github.com/nguyenphanno © 2026. All rights reserved
 /**
  * SuperTask.ts — optional Super activation through the PRO service.
  * Off by default; requires the PRO risk acknowledgement.

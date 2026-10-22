@@ -1,3 +1,4 @@
+// Copyright github.com/nguyenphanno © 2026. All rights reserved
 /**
  * BrandMark.tsx — the extension's own icon, reused as the in-app logo.
  * Using the shipped PNG keeps the toolbar icon and the UI mark identical.

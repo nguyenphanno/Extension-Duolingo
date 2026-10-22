@@ -1,3 +1,4 @@
+// Copyright github.com/nguyenphanno © 2026. All rights reserved
 /**
  * BoostTask.ts — requests a 15-minute double-XP boost via the PRO service.
  */

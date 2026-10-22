@@ -1,3 +1,4 @@
+// Copyright github.com/nguyenphanno © 2026. All rights reserved
 /**
  * Result.ts — explicit success/failure without throwing across boundaries.
  *
@@ -11,14 +12,21 @@ export class AppError extends Error {
   readonly status?: number;
   readonly retryable: boolean;
   readonly detail?: string;
+  /** Server-requested wait, when the response carried `Retry-After`. */
+  readonly retryAfterMs?: number;
 
-  constructor(code: ErrorCode, message: string, options: { status?: number; retryable?: boolean; detail?: string } = {}) {
+  constructor(
+    code: ErrorCode,
+    message: string,
+    options: { status?: number; retryable?: boolean; detail?: string; retryAfterMs?: number } = {},
+  ) {
     super(message);
     this.name = 'AppError';
     this.code = code;
     this.status = options.status;
     this.retryable = options.retryable ?? false;
     this.detail = options.detail;
+    this.retryAfterMs = options.retryAfterMs;
   }
 
   toShape(): AppErrorShape {

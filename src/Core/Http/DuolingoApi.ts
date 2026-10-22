@@ -1,3 +1,4 @@
+// Copyright github.com/nguyenphanno © 2026. All rights reserved
 /**
  * DuolingoApi.ts — typed access to Duolingo's (unofficial) web endpoints.
  *

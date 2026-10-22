@@ -1,3 +1,4 @@
+// Copyright github.com/nguyenphanno © 2026. All rights reserved
 /**
  * CaptureShots.mjs — regenerates docs/screenshots/*.png from the built UI.
  *

@@ -1,3 +1,4 @@
+// Copyright github.com/nguyenphanno © 2026. All rights reserved
 /**
  * Time.ts — clock helpers. Every wait in the automation goes through here so
  * cancellation is honoured instantly instead of after a 5s sleep.

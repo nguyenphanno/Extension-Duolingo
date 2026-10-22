@@ -1,9 +1,15 @@
+// Copyright github.com/nguyenphanno © 2026. All rights reserved
 /**
  * PracticeTask.ts — opens and closes N practice sessions.
  *
  * Each session gets a random lesson length, a short "reading" pause between
  * opening and submitting, and a jittered gap before the next one. The jitter
  * is not cosmetic: evenly spaced writes are the easiest pattern to flag.
+ *
+ * Two ceilings can stop the loop early, and they answer different questions:
+ *   - `xpBudget`  — "never earn more than this in one run" (absolute),
+ *   - `stopAtDailyGoal` — "stop once today's goal is met" (relative to history).
+ * Goal mode is what makes this a streak tool rather than an XP farm.
  */
 import type { SessionResult, TaskOutcome } from '@Shared/Types';
 import { randomBetween, randomInt } from '@Shared/Utils/Time';
@@ -27,10 +33,21 @@ export const practiceTask: AutomationTask = {
       return skip('practice', LABEL, `Dry run — would complete ${practice.sessions} sessions.`, startedAt);
     }
 
+    const goal = Math.max(0, practice.dailyXpGoal);
+    const goalMode = practice.stopAtDailyGoal && goal > 0;
+    const alreadyEarned = Math.max(0, ctx.todayXp);
+
+    // Nothing to do at all when the target was already hit before we started.
+    if (goalMode && alreadyEarned >= goal) {
+      ctx.log.info(`Daily goal already met (${alreadyEarned}/${goal} XP) — skipping practice.`);
+      return skip('practice', LABEL, `Daily goal already reached (${alreadyEarned}/${goal} XP).`, startedAt);
+    }
+
     const sessions: SessionResult[] = [];
     let totalXp = 0;
     const budget = Math.max(0, practice.xpBudget);
     let budgetHit = false;
+    let goalHit = false;
 
     for (let index = 1; index <= practice.sessions; index += 1) {
       ctx.signal.throwIfAborted();
@@ -38,6 +55,14 @@ export const practiceTask: AutomationTask = {
       if (budget > 0 && totalXp >= budget) {
         budgetHit = true;
         ctx.log.info(`XP budget reached (${totalXp}/${budget}) — stopping early.`);
+        break;
+      }
+
+      // Checked before every session, including the first, so a run started
+      // seconds after the goal was met does no work at all.
+      if (goalMode && alreadyEarned + totalXp >= goal) {
+        goalHit = true;
+        ctx.log.info(`Daily goal reached (${alreadyEarned + totalXp}/${goal} XP) — stopping early.`);
         break;
       }
 
@@ -77,6 +102,7 @@ export const practiceTask: AutomationTask = {
     const details: string[] = [];
     if (failed > 0) details.push(`${failed} session(s) failed.`);
     if (budgetHit) details.push(`Stopped at the ${budget} XP budget.`);
+    if (goalHit) details.push(`Daily goal reached at ${alreadyEarned + totalXp}/${goal} XP.`);
 
     return outcome(
       'practice',

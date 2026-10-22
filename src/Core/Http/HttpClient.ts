@@ -1,12 +1,20 @@
+// Copyright github.com/nguyenphanno © 2026. All rights reserved
 /**
  * HttpClient.ts — one place that knows how to talk to the network.
  *
  * Features: per-request timeout, exponential backoff with jitter, Retry-After
  * support, mutation spacing (so bursts look human), and errors normalised into
  * `AppError` so callers never inspect raw `Response` objects.
+ *
+ * Adaptive pacing: a 429 is the server telling us we are too fast. Rather than
+ * retrying at the same rate, the client multiplies the minimum gap between
+ * mutating requests and refuses to send anything until `Retry-After` expires.
+ * The multiplier resets per run, because pacing learned during one burst is not
+ * evidence about the next one.
  */
-import { NETWORK } from '@Shared/Constants';
+import { NETWORK, PACING } from '@Shared/Constants';
 import { AppError } from '@Shared/Result';
+import type { PacingState } from '@Shared/Types';
 import { randomBetween, sleep } from '@Shared/Utils/Time';
 
 export type HttpMethod = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
@@ -34,8 +42,20 @@ function isRetryableStatus(status: number): boolean {
   return status === 408 || status === 425 || status === 429 || status >= 500;
 }
 
+/** `Retry-After` is either delta-seconds or an HTTP date. Both appear in the wild. */
+function parseRetryAfter(raw: string | null): number | null {
+  if (!raw) return null;
+  const seconds = Number(raw);
+  if (Number.isFinite(seconds)) return Math.max(0, Math.round(seconds * 1000));
+  const at = Date.parse(raw);
+  return Number.isFinite(at) ? Math.max(0, at - Date.now()) : null;
+}
+
 export class HttpClient {
   private lastMutationAt = 0;
+  private factor = 1;
+  private holdUntil = 0;
+  private rateLimitHits = 0;
 
   constructor(
     private readonly baseHeaders: Record<string, string>,
@@ -45,6 +65,15 @@ export class HttpClient {
       minMutationGapMs: NETWORK.minMutationGapMs,
     },
   ) {}
+
+  /** What this client learned — surfaced in the UI instead of hidden. */
+  get pacing(): PacingState {
+    return {
+      factor: Number(this.factor.toFixed(2)),
+      holdUntil: this.holdUntil > Date.now() ? this.holdUntil : null,
+      rateLimitHits: this.rateLimitHits,
+    };
+  }
 
   async request<T>(url: string, options: RequestOptions = {}): Promise<HttpResponse<T>> {
     const method = options.method ?? 'GET';
@@ -60,8 +89,11 @@ export class HttpClient {
         const canRetry = attempt < retries && appError.retryable && appError.code !== 'CANCELLED';
         if (!canRetry) throw appError;
         attempt += 1;
+
+        // A server-provided wait always wins over our own guesswork.
         const backoff = NETWORK.baseDelayMs * 2 ** (attempt - 1) + randomBetween(0, 250);
-        await sleep(backoff, options.signal);
+        const wait = Math.min(PACING.maxRetryAfterMs, Math.max(backoff, appError.retryAfterMs ?? 0));
+        await sleep(wait, options.signal);
       }
     }
   }
@@ -72,15 +104,30 @@ export class HttpClient {
   }
 
   private async spaceMutations(signal?: AbortSignal): Promise<void> {
-    const elapsed = Date.now() - this.lastMutationAt;
-    const gap = this.config.minMutationGapMs - elapsed;
+    // Honour a hold first: after a 429 nothing mutating leaves this client
+    // until the server's window has passed.
+    const hold = this.holdUntil - Date.now();
+    if (hold > 0) await sleep(hold, signal);
+
+    const gap = this.config.minMutationGapMs * this.factor - (Date.now() - this.lastMutationAt);
     if (gap > 0) await sleep(gap, signal);
     this.lastMutationAt = Date.now();
   }
 
+  /** Widen the gap and park the client until `retryAfterMs` has elapsed. */
+  private throttle(retryAfterMs: number | null): void {
+    this.rateLimitHits += 1;
+    this.factor = Math.min(PACING.maxFactor, Number((this.factor * PACING.step).toFixed(2)));
+    const hold = Math.min(PACING.maxRetryAfterMs, retryAfterMs ?? 0);
+    if (hold > 0) this.holdUntil = Math.max(this.holdUntil, Date.now() + hold);
+  }
+
   private async execute<T>(url: string, options: RequestOptions & { method: HttpMethod }): Promise<HttpResponse<T>> {
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(new DOMException('Timeout', 'TimeoutError')), options.timeoutMs ?? this.config.timeoutMs);
+    const timeout = setTimeout(
+      () => controller.abort(new DOMException('Timeout', 'TimeoutError')),
+      options.timeoutMs ?? this.config.timeoutMs,
+    );
     const onAbort = () => controller.abort(new DOMException('Aborted', 'AbortError'));
     options.signal?.addEventListener('abort', onAbort, { once: true });
 
@@ -122,17 +169,16 @@ export class HttpClient {
     }
 
     if (!response.ok) {
-      const retryAfter = Number(response.headers.get('Retry-After'));
+      const retryAfterMs = parseRetryAfter(response.headers.get('Retry-After'));
       const retryable = isRetryableStatus(response.status);
-      const code =
-        response.status === 401
-          ? 'UNAUTHORIZED'
-          : response.status === 429
-            ? 'RATE_LIMITED'
-            : 'HTTP';
+      const code = response.status === 401 ? 'UNAUTHORIZED' : response.status === 429 ? 'RATE_LIMITED' : 'HTTP';
+
+      if (response.status === 429) this.throttle(retryAfterMs);
+
       throw new AppError(code, `${label} → HTTP ${response.status}`, {
         status: response.status,
         retryable,
+        retryAfterMs: retryAfterMs ?? undefined,
         detail: typeof data === 'object' && data ? JSON.stringify(data).slice(0, 400) : text.slice(0, 400),
       });
     }

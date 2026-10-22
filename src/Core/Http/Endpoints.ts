@@ -1,3 +1,4 @@
+// Copyright github.com/nguyenphanno © 2026. All rights reserved
 /**
  * Endpoints.ts — URL construction only, so path changes are a one-line edit.
  */

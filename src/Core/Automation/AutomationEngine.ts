@@ -1,3 +1,4 @@
+// Copyright github.com/nguyenphanno © 2026. All rights reserved
 /**
  * AutomationEngine.ts — the orchestrator.
  *
@@ -5,12 +6,13 @@
  * translate per-task progress into one overall progress value, and produce a
  * durable `RunSummary`. It never touches storage or chrome.* — the caller does.
  */
-import { createDuoHttpClient } from '@Core/Http/HttpClient';
+import { createDuoHttpClient, type HttpClient } from '@Core/Http/HttpClient';
 import { DuolingoApi } from '@Core/Http/DuolingoApi';
 import { ProApi } from '@Core/Http/ProApi';
 import { logger } from '@Shared/Logger';
 import { AppError, toShape } from '@Shared/Result';
 import type {
+  PacingState,
   Profile,
   ProfileSnapshot,
   RunState,
@@ -29,6 +31,8 @@ import type { TaskContext } from './Task';
 export interface EngineHooks {
   onState: (patch: Partial<RunState>) => void;
   onTaskDone: (task: TaskOutcome) => void;
+  /** Pacing is reported as it changes so the UI can show the throttle live. */
+  onPacing?: (pacing: PacingState) => void;
 }
 
 export interface EngineInput {
@@ -38,6 +42,8 @@ export interface EngineInput {
   hooks: EngineHooks;
   /** Run only these tasks, in registry order. Omit for the normal plan. */
   only?: TaskKey[];
+  /** XP already earned today, used by goal mode. */
+  todayXp?: number;
 }
 
 const METRIC_LABELS: Record<string, string> = {
@@ -68,11 +74,17 @@ const snapshot = (profile: Profile | null): ProfileSnapshot | null =>
 export class AutomationEngine {
   private readonly controller = new AbortController();
   private readonly log = logger.scope('run');
+  private http: HttpClient | null = null;
 
   constructor(private readonly input: EngineInput) {}
 
   get signal(): AbortSignal {
     return this.controller.signal;
+  }
+
+  /** Snapshot of what the HTTP client learned — safe to call after `run()`. */
+  get pacing(): PacingState {
+    return this.http?.pacing ?? { factor: 1, holdUntil: null, rateLimitHits: 0 };
   }
 
   cancel(reason = 'Cancelled by user.'): void {
@@ -106,6 +118,7 @@ export class AutomationEngine {
     }
 
     const http = createDuoHttpClient(parsed.token);
+    this.http = http;
     const api = new DuolingoApi(http, parsed.userId);
     const pro = new ProApi(http);
 
@@ -172,6 +185,7 @@ export class AutomationEngine {
         settings,
         profile: effectiveProfile,
         dryRun: settings.behavior.dryRun,
+        todayXp: Math.max(0, this.input.todayXp ?? 0),
         signal: this.signal,
         log: logger.scope(task.key),
         wait: (ms) => sleep(ms, this.signal),
@@ -212,6 +226,8 @@ export class AutomationEngine {
 
       doneWeight += task.weight;
       hooks.onState({ progress: Math.min(0.99, doneWeight / weightTotal) });
+      // Pacing is only interesting once something has actually been sent.
+      if (http.pacing.rateLimitHits > 0) hooks.onPacing?.(http.pacing);
     }
 
     hooks.onState({ phase: 'finishing', currentLabel: 'Refreshing profile', currentTask: null });

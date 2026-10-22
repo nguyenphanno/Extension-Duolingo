@@ -1,3 +1,4 @@
+// Copyright github.com/nguyenphanno © 2026. All rights reserved
 /**
  * AppContext.ts — the service worker's single shared state container.
  *
@@ -8,10 +9,10 @@ import { tokenProvider } from '@Core/Auth/TokenProvider';
 import { historyRepository, type HistoryRepository } from '@Core/Storage/HistoryRepository';
 import { settingsRepository, type SettingsRepository } from '@Core/Storage/SettingsRepository';
 import { readRaw, writeRaw } from '@Core/Storage/StorageArea';
-import { STORAGE_KEYS } from '@Shared/Constants';
+import { ALARM_GUARD, ALARM_SCHEDULE, STORAGE_KEYS } from '@Shared/Constants';
 import { logger } from '@Shared/Logger';
 import type { StreamEvent, UiState } from '@Shared/Protocol';
-import type { Profile, RunState, RunSummary } from '@Shared/Types';
+import type { PacingState, Profile, RunState, RunSummary } from '@Shared/Types';
 import { PortHub } from './PortHub';
 
 export const IDLE_RUN: RunState = {
@@ -27,6 +28,9 @@ export const IDLE_RUN: RunState = {
   error: null,
 };
 
+/** Neutral pacing: one times the configured gap, nothing held back. */
+export const NEUTRAL_PACING: PacingState = { factor: 1, holdUntil: null, rateLimitHits: 0 };
+
 export class AppContext {
   readonly ports = new PortHub();
   readonly settings: SettingsRepository = settingsRepository;
@@ -36,6 +40,7 @@ export class AppContext {
   profile: Profile | null = null;
   run: RunState = { ...IDLE_RUN };
   lastSummary: RunSummary | null = null;
+  pacing: PacingState = { ...NEUTRAL_PACING };
   version = '2.0.0';
 
   broadcast(event: StreamEvent): void {
@@ -52,6 +57,11 @@ export class AppContext {
     this.profile = profile;
     if (profile) void writeRaw('local', STORAGE_KEYS.profileCache, profile);
     this.broadcast({ type: 'profile', profile });
+  }
+
+  /** Remember what the HTTP client learned; survives until the next run. */
+  setPacing(pacing: PacingState): void {
+    this.pacing = pacing;
   }
 
   /** Restore caches after the worker was suspended. */
@@ -73,10 +83,11 @@ export class AppContext {
 
   async buildState(): Promise<UiState> {
     const settings = await this.settings.load();
-    const [stats, token, alarm] = await Promise.all([
+    const [stats, token, alarm, guard] = await Promise.all([
       this.history.stats(),
       tokenProvider.info({ source: settings.tokenSource, manualToken: settings.manualToken }),
-      chrome.alarms?.get?.('duo.schedule') ?? Promise.resolve(undefined),
+      chrome.alarms?.get?.(ALARM_SCHEDULE) ?? Promise.resolve(undefined),
+      chrome.alarms?.get?.(ALARM_GUARD) ?? Promise.resolve(undefined),
     ]);
 
     return {
@@ -88,7 +99,8 @@ export class AppContext {
       token,
       lastSummary: this.lastSummary,
       version: this.version,
-      schedule: { nextRunAt: alarm?.scheduledTime ?? null },
+      schedule: { nextRunAt: alarm?.scheduledTime ?? null, guardAt: guard?.scheduledTime ?? null },
+      pacing: this.pacing,
     };
   }
 

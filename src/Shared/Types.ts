@@ -1,3 +1,4 @@
+// Copyright github.com/nguyenphanno © 2026. All rights reserved
 /**
  * Types.ts — the single source of truth for every shape that crosses a
  * boundary (service worker <-> UI, storage <-> runtime, network <-> domain).
@@ -81,7 +82,7 @@ export interface TaskOutcome {
   finishedAt: number;
 }
 
-export type RunTrigger = 'manual' | 'schedule' | 'context-menu' | 'command' | 'content-script';
+export type RunTrigger = 'manual' | 'schedule' | 'context-menu' | 'command' | 'content-script' | 'guard';
 
 export interface RunSummary {
   id: string;
@@ -141,6 +142,12 @@ export interface PracticeSettings {
   dailyXpGoal: number;
   /** Hard ceiling for a single run. 0 means "no budget". */
   xpBudget: number;
+  /**
+   * Goal mode: stop the run as soon as *today's* XP reaches `dailyXpGoal`.
+   * This is the difference between "farm XP" and "keep the streak alive with
+   * the smallest footprint that still counts".
+   */
+  stopAtDailyGoal: boolean;
 }
 
 export interface RewardsSettings {
@@ -163,6 +170,20 @@ export interface FreezeSettings {
   targetCount: number;
 }
 
+/**
+ * Streak guard — one late alarm that exists purely to stop a streak dying.
+ *
+ * It is deliberately separate from the interval schedule: the interval answers
+ * "how often", the guard answers "at the last reasonable moment of the day".
+ */
+export interface GuardSettings {
+  enabled: boolean;
+  /** Local hour the guard fires at, 0–23. */
+  hour: number;
+  /** 0 or 30 — half-hour granularity is enough and keeps the UI simple. */
+  minute: number;
+}
+
 export interface ScheduleSettings {
   enabled: boolean;
   intervalMinutes: number;
@@ -170,6 +191,7 @@ export interface ScheduleSettings {
   runOnStartup: boolean;
   /** Weekdays the scheduler may fire on. 0 = Sunday … 6 = Saturday. */
   days: number[];
+  guard: GuardSettings;
 }
 
 export interface BehaviorSettings {
@@ -218,6 +240,23 @@ export interface HistoryStats {
   lastRunAt: number | null;
   /** One entry per day, ascending. */
   daily: Array<{ day: string; xp: number; runs: number }>;
+}
+
+/**
+ * Adaptive pacing — what the HTTP client learned during the last run.
+ *
+ * A 429 is the server telling us we are too fast. Instead of retrying at the
+ * same rate, the client multiplies the minimum gap between mutating requests
+ * and holds off until `Retry-After` expires. The factor is reported so the UI
+ * can show it rather than hide it.
+ */
+export interface PacingState {
+  /** Multiplier applied to the minimum gap between mutating requests. */
+  factor: number;
+  /** Epoch ms until which the client refuses to send anything mutating. */
+  holdUntil: number | null;
+  /** How many rate-limit responses were absorbed in the last run. */
+  rateLimitHits: number;
 }
 
 /* ------------------------------------------------------------------ *

@@ -1,3 +1,4 @@
+// Copyright github.com/nguyenphanno © 2026. All rights reserved
 /**
  * ProApi.ts — the optional third-party bridge (badges, Super, XP boosts).
  *

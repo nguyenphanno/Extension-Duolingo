@@ -1,3 +1,4 @@
+// Copyright github.com/nguyenphanno © 2026. All rights reserved
 /**
  * SettingsRepository.ts — typed, versioned, defensive settings.
  *
@@ -5,7 +6,7 @@
  * defaults and every numeric field is clamped to its documented range. That
  * means a corrupted or hand-edited blob can never crash the automation.
  */
-import { DEFAULT_TIMEZONE, LIMITS, SCHEMA_VERSION, STORAGE_KEYS } from '@Shared/Constants';
+import { DEFAULT_TIMEZONE, GUARD, LIMITS, SCHEMA_VERSION, STORAGE_KEYS } from '@Shared/Constants';
 import type { Settings } from '@Shared/Types';
 import { clamp } from '@Shared/Utils/Format';
 import { readRaw, writeRaw } from './StorageArea';
@@ -25,6 +26,7 @@ export const DEFAULT_SETTINGS: Settings = {
     heartsLeft: 5,
     dailyXpGoal: 50,
     xpBudget: 0,
+    stopAtDailyGoal: false,
   },
   rewards: { enabled: true, maxClaims: 35 },
   badges: {
@@ -44,6 +46,7 @@ export const DEFAULT_SETTINGS: Settings = {
     quietHours: { enabled: false, startHour: 23, endHour: 6 },
     runOnStartup: false,
     days: [0, 1, 2, 3, 4, 5, 6],
+    guard: { enabled: false, hour: GUARD.hour, minute: GUARD.minute },
   },
   behavior: {
     dryRun: false,
@@ -55,6 +58,50 @@ export const DEFAULT_SETTINGS: Settings = {
   },
   ui: { theme: 'system', locale: 'en', reduceMotion: false },
 };
+
+/**
+ * Settings migration — bring an old blob up to the current schema.
+ *
+ * Each migration is a pure function that patches the raw blob *before*
+ * `normaliseSettings` runs, so the normaliser only ever sees the shape it
+ * expects. Migrations are cumulative: version 1 → 2 → 3, never skipping.
+ *
+ * The current schema version lives in `SCHEMA_VERSION` (see Constants.ts).
+ * Bump it *and* add a migration here whenever a breaking change lands.
+ */
+const MIGRATIONS: Array<{ toVersion: number; patch: (raw: Json) => void }> = [
+  {
+    toVersion: 2,
+    patch(raw) {
+      // v1 → v2: add the streak guard block to schedule, plus stopAtDailyGoal.
+      const schedule = isObject(raw.schedule) ? (raw.schedule as Json) : {};
+      if (!isObject(schedule.guard)) {
+        schedule.guard = { enabled: false, hour: GUARD.hour, minute: GUARD.minute };
+        raw.schedule = schedule;
+      }
+      const practice = isObject(raw.practice) ? (raw.practice as Json) : {};
+      if (practice.stopAtDailyGoal === undefined) {
+        practice.stopAtDailyGoal = false;
+        raw.practice = practice;
+      }
+    },
+  },
+  // Add future migrations here:
+  // { toVersion: 3, patch(raw) { … } },
+];
+
+/** Apply all migrations up to the current `SCHEMA_VERSION`. */
+function migrate(raw: Json): Json {
+  let version = typeof raw.schemaVersion === 'number' ? raw.schemaVersion : 1;
+  for (const migration of MIGRATIONS) {
+    if (version < migration.toVersion) {
+      migration.patch(raw);
+      version = migration.toVersion;
+    }
+  }
+  raw.schemaVersion = SCHEMA_VERSION;
+  return raw;
+}
 
 type Json = Record<string, unknown>;
 
@@ -89,6 +136,7 @@ export function normaliseSettings(input: unknown): Settings {
   const freeze = isObject(raw.freeze) ? raw.freeze : {};
   const schedule = isObject(raw.schedule) ? raw.schedule : {};
   const quiet = isObject(schedule.quietHours) ? schedule.quietHours : {};
+  const guard = isObject(schedule.guard) ? schedule.guard : {};
   const behavior = isObject(raw.behavior) ? raw.behavior : {};
   const ui = isObject(raw.ui) ? raw.ui : {};
   const pro = isObject(raw.pro) ? raw.pro : {};
@@ -118,6 +166,7 @@ export function normaliseSettings(input: unknown): Settings {
       heartsLeft: num(practice.heartsLeft, d.practice.heartsLeft, 0, 5),
       dailyXpGoal: num(practice.dailyXpGoal, d.practice.dailyXpGoal, 10, 500),
       xpBudget: num(practice.xpBudget, d.practice.xpBudget, 0, 2000),
+      stopAtDailyGoal: bool(practice.stopAtDailyGoal, d.practice.stopAtDailyGoal),
     },
     rewards: {
       enabled: bool(rewards.enabled, d.rewards.enabled),
@@ -152,6 +201,12 @@ export function normaliseSettings(input: unknown): Settings {
       // An explicitly empty list means "never" — only a missing/invalid value
       // falls back to every day.
       days: Array.isArray(schedule.days) ? days : d.schedule.days,
+      guard: {
+        enabled: bool(guard.enabled, d.schedule.guard.enabled),
+        hour: num(guard.hour, d.schedule.guard.hour, 0, 23),
+        // Snap to the half hour so the alarm never lands mid-minute.
+        minute: num(guard.minute, d.schedule.guard.minute, 0, 59) < 30 ? 0 : 30,
+      },
     },
     behavior: {
       dryRun: bool(behavior.dryRun, d.behavior.dryRun),
@@ -175,7 +230,13 @@ export class SettingsRepository {
   async load(force = false): Promise<Settings> {
     if (this.cache && !force) return this.cache;
     const stored = await readRaw<unknown>('local', STORAGE_KEYS.settings);
-    this.cache = normaliseSettings(stored);
+    const raw = isObject(stored) ? migrate(stored as Json) : { schemaVersion: SCHEMA_VERSION };
+    // If a migration patched the blob, persist the upgraded version so the
+    // next load is fast and the schemaVersion in storage matches the code.
+    if (isObject(stored) && (stored as Json).schemaVersion !== SCHEMA_VERSION) {
+      void writeRaw('local', STORAGE_KEYS.settings, raw);
+    }
+    this.cache = normaliseSettings(raw);
     return this.cache;
   }
 
@@ -204,7 +265,8 @@ export class SettingsRepository {
   importJson(payload: string): Settings {
     const parsed: unknown = JSON.parse(payload);
     const blob = isObject(parsed) && isObject(parsed.settings) ? parsed.settings : parsed;
-    return normaliseSettings(blob);
+    const migrated = isObject(blob) ? migrate(blob as Json) : { schemaVersion: SCHEMA_VERSION };
+    return normaliseSettings(migrated);
   }
 }
 

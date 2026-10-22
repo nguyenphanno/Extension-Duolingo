@@ -1,3 +1,4 @@
+// Copyright github.com/nguyenphanno © 2026. All rights reserved
 /**
  * ExtensionBridge.ts — the one place that knows whether we are running as an
  * extension or as a standalone preview.

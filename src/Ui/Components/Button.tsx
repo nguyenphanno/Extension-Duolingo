@@ -1,3 +1,4 @@
+// Copyright github.com/nguyenphanno © 2026. All rights reserved
 /**
  * Button.tsx — Duolingo's signature control: uppercase, bold, 4px bottom edge
  * that compresses when pressed.

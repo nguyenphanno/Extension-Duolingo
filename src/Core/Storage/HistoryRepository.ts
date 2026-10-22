@@ -1,3 +1,4 @@
+// Copyright github.com/nguyenphanno © 2026. All rights reserved
 /**
  * HistoryRepository.ts — run history and derived analytics.
  *

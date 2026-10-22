@@ -1,3 +1,4 @@
+// Copyright github.com/nguyenphanno © 2026. All rights reserved
 /**
  * Card.tsx — the 2px-border, 4px-bottom container used everywhere.
  */

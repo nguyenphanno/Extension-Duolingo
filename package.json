@@ -12,6 +12,8 @@
     "diagrams": "node Scripts/MakeDiagrams.mjs",
     "shots": "node Scripts/CaptureShots.mjs",
     "docs": "node Scripts/MakeDiagrams.mjs && node Scripts/CaptureShots.mjs",
+    "test": "npx tsx --test tests/*.test.ts",
+    "copyright": "node Scripts/AddCopyright.mjs",
     "clean": "node -e \"require('node:fs').rmSync('dist',{recursive:true,force:true})\""
   },
   "dependencies": {

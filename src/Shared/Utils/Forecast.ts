@@ -1,3 +1,4 @@
+// Copyright github.com/nguyenphanno © 2026. All rights reserved
 /**
  * Forecast.ts — a deterministic projection of streak safety.
  *
@@ -8,11 +9,21 @@
  *
  * That is honest about what it knows and still tells the user the one number
  * they care about: how many days of slack they have left.
+ *
+ * The copy is returned as *translation keys*, not sentences, because this file
+ * lives in the dependency-free Shared layer and must not know which language
+ * the UI is in. The surface decides how to render it.
  */
 import type { Profile } from '../Types';
 import { currentLocale } from './Format';
 
 export type ForecastStatus = 'safe' | 'covered' | 'risk';
+
+/** A translatable fragment: a key plus the values its placeholders need. */
+export interface TextRef {
+  key: string;
+  vars?: Record<string, string | number>;
+}
 
 export interface ForecastDay {
   /** 0 = today. */
@@ -22,7 +33,7 @@ export interface ForecastDay {
   weekday: string;
   status: ForecastStatus;
   /** One short line explaining the status. */
-  note: string;
+  note: TextRef;
 }
 
 export interface ForecastInput {
@@ -41,9 +52,9 @@ export interface StreakForecast {
   /** Today's requirement, already satisfied or not. */
   todaySatisfied: boolean;
   /** Very short — fits a card header. */
-  headline: string;
+  headline: TextRef;
   /** One full sentence explaining the headline. */
-  detail: string;
+  detail: TextRef;
   tone: 'green' | 'gold' | 'red';
 }
 
@@ -68,7 +79,9 @@ export function forecastStreak(input: ForecastInput): StreakForecast {
         at: date.getTime(),
         weekday,
         status: todaySatisfied ? 'safe' : 'risk',
-        note: todaySatisfied ? 'XP already earned' : `Needs ${remainingToday} XP`,
+        note: todaySatisfied
+          ? { key: 'forecast.noteEarned' }
+          : { key: 'forecast.noteNeeds', vars: { n: remainingToday } },
       });
       continue;
     }
@@ -80,31 +93,33 @@ export function forecastStreak(input: ForecastInput): StreakForecast {
       at: date.getTime(),
       weekday,
       status: covered ? 'covered' : 'risk',
-      note: covered ? `Freeze ${offset}/${freezes}` : 'No cover',
+      note: covered
+        ? { key: 'forecast.noteFreeze', vars: { index: offset, total: freezes } }
+        : { key: 'forecast.noteNoCover' },
     });
   }
 
   const slack = freezes + (todaySatisfied ? 1 : 0);
 
-  let headline: string;
-  let detail: string;
+  let headline: TextRef;
+  let detail: TextRef;
   let tone: StreakForecast['tone'];
 
   if (input.streak === 0) {
-    headline = 'No streak yet';
-    detail = 'One lesson starts it — after that this card tracks your cover.';
+    headline = { key: 'forecast.titleNoStreak' };
+    detail = { key: 'forecast.bodyNoStreak' };
     tone = 'gold';
   } else if (slack >= horizon) {
-    headline = 'Fully covered';
-    detail = `Streak freezes and today's XP cover the next ${horizon} days.`;
+    headline = { key: 'forecast.titleCovered' };
+    detail = { key: 'forecast.bodyCovered', vars: { days: horizon } };
     tone = 'green';
   } else if (slack > 0) {
-    headline = `${slack} day(s) of cover`;
-    detail = `${slack} missed day(s) are covered — after that the streak is exposed.`;
+    headline = slack === 1 ? { key: 'forecast.titleSlackOne' } : { key: 'forecast.titleSlackMany', vars: { n: slack } };
+    detail = slack === 1 ? { key: 'forecast.bodySlackOne' } : { key: 'forecast.bodySlackMany', vars: { n: slack } };
     tone = slack >= 3 ? 'green' : 'gold';
   } else {
-    headline = 'No cover left';
-    detail = 'No freezes banked and no XP today. One lesson keeps the streak alive.';
+    headline = { key: 'forecast.titleNone' };
+    detail = { key: 'forecast.bodyNone' };
     tone = 'red';
   }
 

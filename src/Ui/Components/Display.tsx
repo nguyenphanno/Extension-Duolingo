@@ -1,3 +1,4 @@
+// Copyright github.com/nguyenphanno © 2026. All rights reserved
 /**
  * Display.tsx — read-only presentation pieces: stat pills, progress, charts.
  */

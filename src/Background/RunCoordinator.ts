@@ -1,3 +1,4 @@
+// Copyright github.com/nguyenphanno © 2026. All rights reserved
 /**
  * RunCoordinator.ts — owns the "only one run at a time" invariant.
  *
@@ -7,9 +8,10 @@
  */
 import { AutomationEngine } from '@Core/Automation/AutomationEngine';
 import { tokenProvider } from '@Core/Auth/TokenProvider';
+import { GUARD } from '@Shared/Constants';
 import { logger } from '@Shared/Logger';
 import { AppError, err, ok, type Result } from '@Shared/Result';
-import type { RunSummary, RunTrigger, TaskKey } from '@Shared/Types';
+import type { PacingState, RunSummary, RunTrigger, Settings, TaskKey } from '@Shared/Types';
 import type { AppContext } from './AppContext';
 import { notificationService } from './NotificationService';
 
@@ -28,7 +30,8 @@ export class RunCoordinator {
       return err(new AppError('UNKNOWN', 'A run is already in progress.'));
     }
 
-    const settings = await this.app.settings.load();
+    const loaded = await this.app.settings.load();
+    const settings = this.shapeForTrigger(trigger, loaded);
 
     // Cooldown: stop accidental double-clicks and rapid re-runs. Scheduled runs
     // are exempt because the alarm already spaces them out, and so are targeted
@@ -36,7 +39,8 @@ export class RunCoordinator {
     const cooldownMs = settings.behavior.cooldownSeconds * 1000;
     const lastFinished = this.app.lastSummary?.finishedAt ?? null;
     const targeted = Boolean(only && only.length > 0);
-    if (trigger !== 'schedule' && !targeted && cooldownMs > 0 && lastFinished) {
+    const exempt = trigger === 'schedule' || trigger === 'guard' || targeted;
+    if (!exempt && cooldownMs > 0 && lastFinished) {
       const remaining = cooldownMs - (Date.now() - lastFinished);
       if (remaining > 0) {
         return err(
@@ -60,6 +64,7 @@ export class RunCoordinator {
       settings,
       trigger,
       only,
+      todayXp: await this.todayXp(),
       hooks: {
         onState: (patch) => {
           const phaseChanged = patch.phase !== undefined && patch.phase !== this.app.run.phase;
@@ -70,6 +75,10 @@ export class RunCoordinator {
           }
         },
         onTaskDone: () => {
+          void this.app.pushState();
+        },
+        onPacing: (pacing) => {
+          this.app.setPacing(pacing);
           void this.app.pushState();
         },
       },
@@ -83,6 +92,7 @@ export class RunCoordinator {
     try {
       const summary = await engine.run();
       this.app.lastSummary = summary;
+      this.app.setPacing(engine.pacing);
       await this.app.history.append(summary);
       await notificationService.runFinished(summary, settings);
       await notificationService.updateBadge(this.app.run, settings, summary.after?.streak ?? null);
@@ -107,6 +117,26 @@ export class RunCoordinator {
     } finally {
       this.engine = null;
     }
+  }
+
+  /**
+   * The streak guard is a rescue, not a run: one lesson, and stop the moment
+   * the daily goal is met. Cloning the settings keeps the stored ones intact —
+   * a guard must never quietly rewrite the user's configuration.
+   */
+  private shapeForTrigger(trigger: RunTrigger, settings: Settings): Settings {
+    if (trigger !== 'guard') return settings;
+    this.log.info(`Streak guard: one ${GUARD.sessions}-session rescue run.`);
+    return {
+      ...settings,
+      practice: { ...settings.practice, sessions: GUARD.sessions, stopAtDailyGoal: true },
+    };
+  }
+
+  /** XP already earned today, from our own run history. */
+  private async todayXp(): Promise<number> {
+    const stats = await this.app.history.stats();
+    return stats.daily[stats.daily.length - 1]?.xp ?? 0;
   }
 
   cancel(): boolean {
